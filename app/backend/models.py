@@ -112,3 +112,20 @@ class DestroyResponse(BaseModel):
     """Respuesta exitosa de DELETE /destroy."""
     message: str
     release_name: str
+
+
+class DeploymentInfo(BaseModel):
+    """Información resumida de un despliegue activo."""
+    release_name: str
+    namespace: str
+    db_type: str
+    chart: str
+    status: str
+    updated: str
+    statefulsets: int
+    ready_instances: int
+
+
+class ListDeploymentsResponse(BaseModel):
+    """Respuesta de GET /deployments."""
+    deployments: list[DeploymentInfo]

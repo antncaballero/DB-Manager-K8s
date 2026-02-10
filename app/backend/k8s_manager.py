@@ -331,6 +331,74 @@ def deploy_class(
         logger.info("Archivo temporal %s eliminado.", values_file)
 
 
+def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
+    """Lista las releases de Helm desplegadas y obtiene info básica de StatefulSets.
+
+    Devuelve una lista de dicts con información resumida de cada despliegue.
+    """
+    # 1. Listar releases de Helm
+    cmd = ["helm", "list", "--output", "json"]
+    if namespace:
+        cmd += ["--namespace", namespace]
+    else:
+        cmd += ["--all-namespaces"]
+
+    result = _run(cmd, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        return []
+
+    releases = json.loads(result.stdout)
+    deployments: list[dict[str, Any]] = []
+
+    for rel in releases:
+        release_name = rel.get("name", "")
+        rel_namespace = rel.get("namespace", "default")
+        chart = rel.get("chart", "")
+        status = rel.get("status", "unknown")
+        updated = rel.get("updated", "")
+
+        # Detectar tipo de DB según el chart
+        db_type_str = ""
+        if "mysql" in chart.lower():
+            db_type_str = "mysql"
+        elif "mongo" in chart.lower():
+            db_type_str = "mongo"
+        else:
+            continue  # No es un despliegue gestionado por esta app
+
+        # 2. Obtener StatefulSets asociados
+        sts_cmd = [
+            "kubectl", "get", "statefulsets",
+            "-n", rel_namespace,
+            "-l", f"app.kubernetes.io/instance={release_name}",
+            "-o", "json",
+        ]
+        sts_result = _run(sts_cmd, check=False)
+        sts_count = 0
+        ready_count = 0
+        if sts_result.returncode == 0 and sts_result.stdout.strip():
+            sts_data = json.loads(sts_result.stdout)
+            items = sts_data.get("items", [])
+            sts_count = len(items)
+            for item in items:
+                sts_status = item.get("status", {})
+                ready = sts_status.get("readyReplicas", 0)
+                ready_count += ready
+
+        deployments.append({
+            "release_name": release_name,
+            "namespace": rel_namespace,
+            "db_type": db_type_str,
+            "chart": chart,
+            "status": status,
+            "updated": updated,
+            "statefulsets": sts_count,
+            "ready_instances": ready_count,
+        })
+
+    return deployments
+
+
 def destroy_class(
     db_type: DBType,
     class_name: str,

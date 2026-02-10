@@ -18,8 +18,10 @@ from models import (
     DBType,
     DeployRequest,
     DeployResponse,
+    DeploymentInfo,
     DestroyRequest,
     DestroyResponse,
+    ListDeploymentsResponse,
     PortMapping,
 )
 import k8s_manager
@@ -59,6 +61,24 @@ app.add_middleware(
 def health_check() -> dict[str, str]:
     """Healthcheck simple para Docker / K8s liveness probes."""
     return {"status": "ok"}
+
+
+@app.get("/deployments", response_model=ListDeploymentsResponse)
+def list_deployments(namespace: str | None = None) -> ListDeploymentsResponse:
+    """Lista los despliegues activos de bases de datos gestionados por Helm."""
+    logger.info("GET /deployments – namespace=%s", namespace)
+
+    try:
+        raw = k8s_manager.list_deployments(namespace=namespace)
+    except Exception as exc:
+        logger.exception("Error al listar despliegues.")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al listar despliegues: {exc}",
+        ) from exc
+
+    deployments = [DeploymentInfo(**d) for d in raw]
+    return ListDeploymentsResponse(deployments=deployments)
 
 
 @app.post("/deploy", response_model=DeployResponse)
