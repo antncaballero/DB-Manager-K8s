@@ -11,7 +11,7 @@ services:
       # Credenciales de Kubernetes – "mando a distancia"
       - ~/.kube/config:/root/.kube/config:ro
       # Certificados de Minikube (montados en la MISMA ruta que referencia el kubeconfig)
-      - ~/.minikube:/home/antncaballero/.minikube:ro
+      - ~/.minikube:${HOME}/.minikube:ro
       # Credenciales AWS (necesario si el cluster es EKS)
       - ~/.aws:/root/.aws:ro
       # Charts de Helm (montados en la ruta que espera k8s_manager.py)
