@@ -17,13 +17,11 @@ venv/
 
 # Helm
 *.tgz
-charts/*/charts/ 
 
 # Archivos temporales generados por backend
 *.tmp.yaml
 routing-update.yaml
 
-# Credenciales (Por si acaso
+# Credenciales (Por si acaso)
 .kube/
 .aws/
-secrets.yaml

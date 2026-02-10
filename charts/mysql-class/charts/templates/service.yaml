@@ -1,0 +1,15 @@
+{{- range .Values.instances }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .name }}
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+{{- end }}

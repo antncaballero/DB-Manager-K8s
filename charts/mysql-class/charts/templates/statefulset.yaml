@@ -1,0 +1,57 @@
+{{- $root := . }}
+{{- range .Values.instances }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .name }}
+spec:
+  serviceName: {{ .name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}
+    spec:
+      containers:
+        - name: mysql
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-credentials
+                  key: mysql-root-password
+            - name: MYSQL_USER
+              value: {{ $root.Values.auth.username | quote }}
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shared-credentials
+                  key: mysql-password
+            - name: MYSQL_DATABASE
+              value: {{ $root.Values.auth.database | quote }}
+          ports:
+            - containerPort: 3306
+          resources:
+            requests:
+              cpu: {{ $root.Values.resources.requests.cpu | quote }}
+              memory: {{ $root.Values.resources.requests.memory | quote }}
+            limits:
+              memory: {{ $root.Values.resources.limits.memory | quote }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ $root.Values.storage.className }}
+      resources:
+        requests:
+          storage: {{ $root.Values.storage.size }}
+{{- end }}
