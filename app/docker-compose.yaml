@@ -1,0 +1,45 @@
+services:
+  # ── Backend (API REST + herramientas K8s) ──────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tfg-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Credenciales de Kubernetes – "mando a distancia"
+      - ~/.kube/config:/root/.kube/config:ro
+      # Certificados de Minikube (montados en la MISMA ruta que referencia el kubeconfig)
+      - ~/.minikube:/home/antncaballero/.minikube:ro
+      # Credenciales AWS (necesario si el cluster es EKS)
+      - ~/.aws:/root/.aws:ro
+      # Charts de Helm (montados en la ruta que espera k8s_manager.py)
+      - ../charts:/charts:ro
+    environment:
+      - KUBECONFIG=/root/.kube/config
+    # Conectar a la red de Minikube para alcanzar 192.168.49.2:8443
+    networks:
+      - default
+      - minikube
+    restart: unless-stopped
+
+  # ── Frontend (React + Vite → Nginx) ────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tfg-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# ── Red externa de Minikube ──────────────────────────────────────────────────
+networks:
+  default:
+    driver: bridge
+  minikube:
+    external: true
+    name: minikube

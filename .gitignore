@@ -1,0 +1,29 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# IDEs
+.vscode/
+.idea/
+
+# Helm
+*.tgz
+charts/*/charts/ 
+
+# Archivos temporales generados por backend
+*.tmp.yaml
+routing-update.yaml
+
+# Credenciales (Por si acaso
+.kube/
+.aws/
+secrets.yaml

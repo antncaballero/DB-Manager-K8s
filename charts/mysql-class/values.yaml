@@ -1,0 +1,25 @@
+image:
+  repository: mysql
+  tag: "8.0"
+  pullPolicy: IfNotPresent
+
+# Credenciales compartidas para toda la clase
+auth:
+  username: "alumno"
+  password: "clase_password"
+  rootPassword: "root_password"
+  database: "practica_db"
+
+storage:
+  className: "standard" # Minikube usa 'standard' por defecto, gp2 para AWS, etc, local-path para almacenamiento local, etc.
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    memory: "512Mi"
+
+# Tu Python rellenará esto
+instances: []
