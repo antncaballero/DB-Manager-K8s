@@ -1,9 +1,14 @@
+{{- $root := . }}
 {{- range .Values.instances }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .name }}
+  labels:
+    app: {{ .name }}
+    app.kubernetes.io/instance: {{ $root.Release.Name }}
+    app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
   selector:

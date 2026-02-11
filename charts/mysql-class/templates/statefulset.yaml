@@ -5,6 +5,10 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .name }}
+  labels:
+    app: {{ .name }}
+    app.kubernetes.io/instance: {{ $root.Release.Name }}
+    app.kubernetes.io/managed-by: Helm
 spec:
   serviceName: {{ .name }}
   replicas: 1
@@ -15,6 +19,7 @@ spec:
     metadata:
       labels:
         app: {{ .name }}
+        app.kubernetes.io/instance: {{ $root.Release.Name }}
     spec:
       containers:
         - name: mysql

@@ -367,6 +367,8 @@ def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
             continue  # No es un despliegue gestionado por esta app
 
         # 2. Obtener StatefulSets asociados
+        #    Intentamos primero por label estándar; si no hay resultados,
+        #    buscamos por prefijo de nombre (charts sin labels Helm).
         sts_cmd = [
             "kubectl", "get", "statefulsets",
             "-n", rel_namespace,
@@ -374,16 +376,32 @@ def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
             "-o", "json",
         ]
         sts_result = _run(sts_cmd, check=False)
-        sts_count = 0
-        ready_count = 0
+        items: list[dict[str, Any]] = []
         if sts_result.returncode == 0 and sts_result.stdout.strip():
             sts_data = json.loads(sts_result.stdout)
             items = sts_data.get("items", [])
-            sts_count = len(items)
-            for item in items:
-                sts_status = item.get("status", {})
-                ready = sts_status.get("readyReplicas", 0)
-                ready_count += ready
+
+        # Fallback: si no se encontraron por label, buscar por prefijo de nombre
+        if not items:
+            sts_all_cmd = [
+                "kubectl", "get", "statefulsets",
+                "-n", rel_namespace,
+                "-o", "json",
+            ]
+            sts_all_result = _run(sts_all_cmd, check=False)
+            if sts_all_result.returncode == 0 and sts_all_result.stdout.strip():
+                all_data = json.loads(sts_all_result.stdout)
+                items = [
+                    item for item in all_data.get("items", [])
+                    if item.get("metadata", {}).get("name", "").startswith(f"{release_name}-")
+                ]
+
+        sts_count = len(items)
+        ready_count = 0
+        for item in items:
+            sts_status = item.get("status", {})
+            ready = sts_status.get("readyReplicas", 0)
+            ready_count += ready
 
         deployments.append({
             "release_name": release_name,
