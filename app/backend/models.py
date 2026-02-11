@@ -114,6 +114,13 @@ class DestroyResponse(BaseModel):
     release_name: str
 
 
+class ConnectionMapping(BaseModel):
+    """Mapeo de conexión de un alumno en el listado de despliegues."""
+    student_name: str
+    external_port: int
+    internal_service: str
+
+
 class DeploymentInfo(BaseModel):
     """Información resumida de un despliegue activo."""
     release_name: str
@@ -124,6 +131,8 @@ class DeploymentInfo(BaseModel):
     updated: str
     statefulsets: int
     ready_instances: int
+    external_ip: str = ""
+    port_mappings: list[ConnectionMapping] = []
 
 
 class ListDeploymentsResponse(BaseModel):

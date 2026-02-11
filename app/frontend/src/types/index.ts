@@ -33,6 +33,12 @@ export interface DestroyResponse {
   release_name: string;
 }
 
+export interface ConnectionMapping {
+  student_name: string;
+  external_port: number;
+  internal_service: string;
+}
+
 export interface DeploymentInfo {
   release_name: string;
   namespace: string;
@@ -42,6 +48,8 @@ export interface DeploymentInfo {
   updated: string;
   statefulsets: number;
   ready_instances: number;
+  external_ip: string;
+  port_mappings: ConnectionMapping[];
 }
 
 export interface ListDeploymentsResponse {

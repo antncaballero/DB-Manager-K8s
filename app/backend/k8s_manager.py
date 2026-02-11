@@ -331,11 +331,92 @@ def deploy_class(
         logger.info("Archivo temporal %s eliminado.", values_file)
 
 
+def get_ingress_external_ip() -> str:
+    """Obtiene la IP externa del servicio ingress-nginx-controller.
+
+    Busca el campo status.loadBalancer.ingress[0].ip del Service de tipo
+    LoadBalancer.  Si no lo encuentra, intenta con el campo externalIPs
+    o devuelve cadena vacía.
+    """
+    cmd = [
+        "kubectl", "get", "svc", "ingress-nginx-controller",
+        "-n", INGRESS_NAMESPACE,
+        "-o", "json",
+    ]
+    result = _run(cmd, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        logger.warning("No se pudo obtener el servicio ingress-nginx-controller.")
+        return ""
+
+    svc = json.loads(result.stdout)
+
+    # 1. status.loadBalancer.ingress[].ip
+    ingress_list = svc.get("status", {}).get("loadBalancer", {}).get("ingress", [])
+    for entry in ingress_list:
+        ip = entry.get("ip", "")
+        if ip:
+            return ip
+        # Algunos proveedores devuelven hostname en vez de ip
+        hostname = entry.get("hostname", "")
+        if hostname:
+            return hostname
+
+    # 2. spec.externalIPs
+    external_ips = svc.get("spec", {}).get("externalIPs", [])
+    if external_ips:
+        return external_ips[0]
+
+    # 3. spec.clusterIP como último recurso
+    cluster_ip = svc.get("spec", {}).get("clusterIP", "")
+    if cluster_ip:
+        return cluster_ip
+
+    return ""
+
+
+def _get_port_mappings_for_release(
+    release_name: str,
+    namespace: str,
+    tcp_data: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Extrae del ConfigMap tcp-services los mapeos que pertenecen a una release.
+
+    Busca entradas cuyo valor siga el patrón:
+        {namespace}/{release_name}-alumnoN:{port}
+    y las devuelve como lista de dicts.
+    """
+    prefix = f"{namespace}/{release_name}-"
+    mappings: list[dict[str, Any]] = []
+
+    for ext_port, svc_value in tcp_data.items():
+        # svc_value ejemplo: "default/test-mysql-1-alumno1:3306"
+        if svc_value.startswith(prefix):
+            # Extraer el nombre del alumno del valor
+            svc_part = svc_value.split("/", 1)[1]   # "test-mysql-1-alumno1:3306"
+            svc_name = svc_part.split(":", 1)[0]      # "test-mysql-1-alumno1"
+            # Nombre legible: parte después del release_name-
+            student_name = svc_name[len(release_name) + 1:]  # "alumno1"
+            mappings.append({
+                "student_name": student_name,
+                "external_port": int(ext_port),
+                "internal_service": svc_value,
+            })
+
+    # Ordenar por puerto para consistencia
+    mappings.sort(key=lambda m: m["external_port"])
+    return mappings
+
+
 def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
     """Lista las releases de Helm desplegadas y obtiene info básica de StatefulSets.
 
-    Devuelve una lista de dicts con información resumida de cada despliegue.
+    Devuelve una lista de dicts con información resumida de cada despliegue,
+    incluyendo la IP externa del ingress y los puertos asignados.
     """
+    # 0. Obtener IP externa del ingress y ConfigMap tcp-services (una sola vez)
+    external_ip = get_ingress_external_ip()
+    tcp_data = _get_tcp_configmap()
+
     # 1. Listar releases de Helm
     cmd = ["helm", "list", "--output", "json"]
     if namespace:
@@ -403,6 +484,11 @@ def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
             ready = sts_status.get("readyReplicas", 0)
             ready_count += ready
 
+        # 3. Obtener mapeos de puertos para esta release
+        port_mappings = _get_port_mappings_for_release(
+            release_name, rel_namespace, tcp_data,
+        )
+
         deployments.append({
             "release_name": release_name,
             "namespace": rel_namespace,
@@ -412,6 +498,8 @@ def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
             "updated": updated,
             "statefulsets": sts_count,
             "ready_instances": ready_count,
+            "external_ip": external_ip,
+            "port_mappings": port_mappings,
         })
 
     return deployments
