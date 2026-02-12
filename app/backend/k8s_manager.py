@@ -284,7 +284,77 @@ def clean_tcp_configmap(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  4.  ORQUESTACIÓN COMPLETA  (usadas por main.py)
+#  4.  SINCRONIZACIÓN DE PUERTOS DEL SERVICE INGRESS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _sync_ingress_service_ports() -> None:
+    """Sincroniza los puertos del Service ingress-nginx-controller con el ConfigMap.
+
+    Aunque el controller de NGINX recarga automáticamente su configuración
+    cuando el ConfigMap tcp-services cambia, el **Service** de Kubernetes
+    no lo hace.  Si el Service no expone un puerto, el tráfico nunca llega
+    al pod del controller.
+
+    Esta función:
+      1. Lee los puertos TCP definidos en el ConfigMap.
+      2. Obtiene los puertos actuales del Service.
+      3. Conserva los puertos base (http/https) y reemplaza los dinámicos.
+      4. Aplica un JSON merge-patch sobre el Service.
+    """
+    tcp_data = _get_tcp_configmap()
+
+    # ── Obtener el Service actual ─────────────────────────────────────
+    cmd = [
+        "kubectl", "get", "svc", "ingress-nginx-controller",
+        "-n", INGRESS_NAMESPACE,
+        "-o", "json",
+    ]
+    result = _run(cmd, check=False)
+    if result.returncode != 0:
+        logger.warning(
+            "No se pudo obtener el Service ingress-nginx-controller "
+            "para sincronizar puertos."
+        )
+        return
+
+    svc = json.loads(result.stdout)
+    current_ports: list[dict[str, Any]] = svc.get("spec", {}).get("ports", [])
+
+    # ── Separar puertos base de los TCP dinámicos ─────────────────────
+    # Los puertos TCP gestionados por nosotros se nombran "{puerto}-tcp".
+    base_ports = [p for p in current_ports if not p.get("name", "").endswith("-tcp")]
+
+    # ── Construir nuevos puertos TCP desde el ConfigMap ───────────────
+    tcp_ports: list[dict[str, Any]] = []
+    for ext_port_str in sorted(tcp_data.keys(), key=int):
+        ext_port = int(ext_port_str)
+        tcp_ports.append({
+            "name": f"{ext_port}-tcp",
+            "port": ext_port,
+            "targetPort": ext_port,
+            "protocol": "TCP",
+        })
+
+    all_ports = base_ports + tcp_ports
+
+    # ── Aplicar JSON merge-patch (reemplaza solo spec.ports) ──────────
+    patch = json.dumps({"spec": {"ports": all_ports}})
+    patch_cmd = [
+        "kubectl", "patch", "svc", "ingress-nginx-controller",
+        "-n", INGRESS_NAMESPACE,
+        "--type=merge",
+        "-p", patch,
+    ]
+    _run(patch_cmd)
+    logger.info(
+        "Service ingress-nginx-controller sincronizado: "
+        "%d puertos base + %d puertos TCP.",
+        len(base_ports), len(tcp_ports),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  5.  ORQUESTACIÓN COMPLETA  (usadas por main.py)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def deploy_class(
@@ -321,6 +391,9 @@ def deploy_class(
         # 3. Calcular puertos y actualizar ConfigMap
         mappings = calculate_port_mappings(db_type, class_name, num_students, namespace)
         update_tcp_configmap(mappings)
+
+        # 4. Sincronizar puertos del Service del Ingress
+        _sync_ingress_service_ports()
 
         logger.info("Despliegue de '%s' completado con éxito.", release_name)
         return mappings
@@ -524,5 +597,8 @@ def destroy_class(
 
     # 2. Limpiar ConfigMap
     clean_tcp_configmap(db_type, class_name, num_students, namespace)
+
+    # 3. Sincronizar puertos del Service del Ingress
+    _sync_ingress_service_ports()
 
     logger.info("Release '%s' eliminada con éxito.", release_name)
