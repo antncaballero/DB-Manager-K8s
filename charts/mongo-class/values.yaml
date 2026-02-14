@@ -1,0 +1,24 @@
+image:
+  repository: mongo
+  tag: "7.0"
+  pullPolicy: IfNotPresent
+
+# Credenciales compartidas para toda la clase
+auth:
+  rootUsername: "root"
+  rootPassword: "root_password"
+  database: "practica_db"
+
+storage:
+  className: "standard"
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    memory: "512Mi"
+
+# Python rellenará esto
+instances: []
