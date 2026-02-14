@@ -80,10 +80,10 @@ def write_temp_values(values: dict[str, Any]) -> str:
 #  2.  COMANDOS HELM
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run(cmd: list[str], *, check: bool = True, timeout: int = 120) -> subprocess.CompletedProcess[str]:
     """Wrapper de subprocess.run con logging y captura de salida."""
     logger.info("Ejecutando: %s", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.stdout:
         logger.info("STDOUT:\n%s", result.stdout.strip())
     if result.stderr:
@@ -116,7 +116,7 @@ def helm_deploy(
         "--wait",
         "--timeout", "5m",
     ]
-    result = _run(cmd)
+    result = _run(cmd, timeout=330)  # Helm espera 5m → Python espera 5m30s
     return result.stdout
 
 

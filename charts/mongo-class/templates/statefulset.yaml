@@ -26,9 +26,15 @@ spec:
           image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
-              value: {{ $root.Values.auth.rootUsername | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: shared-credentials
+                  key: mongo-root-username
             - name: MONGO_INITDB_ROOT_PASSWORD
-              value: {{ $root.Values.auth.rootPassword | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: shared-credentials
+                  key: mongo-root-password
             - name: MONGO_INITDB_DATABASE
               value: {{ $root.Values.auth.database | quote }}
           ports:
