@@ -55,7 +55,9 @@ spec:
       name: data
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      {{- if $root.Values.storage.className }}
       storageClassName: {{ $root.Values.storage.className }}
+      {{- end }}
       resources:
         requests:
           storage: {{ $root.Values.storage.size }}

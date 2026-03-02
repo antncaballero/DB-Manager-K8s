@@ -1,0 +1,50 @@
+# ╔═══════════════════════════════════════════════════════════════════════════════╗
+# ║  docker-compose.aws.yaml – Compose COMPLETO para despliegues en AWS/EKS    ║
+# ║                                                                             ║
+# ║  Este archivo es INDEPENDIENTE del docker-compose.yaml de local.            ║
+# ║  Se usa así:                                                                ║
+# ║                                                                             ║
+# ║    cd app/                                                                  ║
+# ║    docker compose -f docker-compose.aws.yaml up -d --build                 ║
+# ║                                                                             ║
+# ║  Diferencias con el modo local (Minikube):                                  ║
+# ║    - NO monta ~/.minikube (no existe en AWS)                                ║
+# ║    - NO usa la red externa de Minikube                                      ║
+# ║    - El kubeconfig apunta al cluster EKS (configurado con setup-eks.sh)     ║
+# ║    - Monta las credenciales AWS para autenticarse contra EKS               ║
+# ║                                                                             ║
+# ║  El frontend y el backend son IDÉNTICOS → mismas imágenes Docker.          ║
+# ║  La app es completamente agnóstica al entorno (local vs cloud).            ║
+# ╚═══════════════════════════════════════════════════════════════════════════════╝
+
+services:
+  # ── Backend (API REST + herramientas K8s) ──────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tfg-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Kubeconfig: apunta a EKS después de ejecutar setup-eks.sh
+      - ~/.kube/config:/root/.kube/config:ro
+      # Credenciales AWS: necesarias para que kubectl se autentique contra EKS
+      - ~/.aws:/root/.aws:ro
+      # Charts de Helm (misma ruta que espera k8s_manager.py)
+      - ../charts:/charts:ro
+    environment:
+      - KUBECONFIG=/root/.kube/config
+    restart: unless-stopped
+
+  # ── Frontend (React + Vite → Nginx) ────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tfg-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

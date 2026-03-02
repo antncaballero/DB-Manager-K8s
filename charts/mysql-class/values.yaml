@@ -11,7 +11,7 @@ auth:
   database: "practica_db"
 
 storage:
-  className: "standard" # Minikube usa 'standard' por defecto, gp2 para AWS, etc, local-path para almacenamiento local, etc.
+  className: "" # Vacío = usa la StorageClass default del cluster (standard en Minikube, gp3 en EKS)
   size: 1Gi
 
 resources:
