@@ -6,6 +6,7 @@
 # ║    2. EKS (cluster K8s)  → necesita la VPC y sus subnets                   ║
 # ║    3. Storage (EBS)      → necesita el cluster EKS funcionando             ║
 # ║    4. NGINX Ingress      → necesita el cluster EKS funcionando             ║
+# ║    5. Monitoring         → Prometheus + Grafana (usa StorageClass gp3)     ║
 # ║                                                                             ║
 # ║  Es el equivalente de tu setup-minikube.sh pero para AWS, declarativo      ║
 # ║  e idempotente (puedes ejecutarlo varias veces sin romper nada).            ║
@@ -67,4 +68,17 @@ module "nginx_ingress" {
   # No necesita variables de puertos – el backend los gestiona dinámicamente
 
   depends_on = [module.eks]
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  5. MONITORING – Prometheus + Grafana
+# ═══════════════════════════════════════════════════════════════════════════════
+# Instala kube-prometheus-stack en el namespace "monitoring".
+# Acceso a Grafana: kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+# URL: http://localhost:3000  |  usuario: admin  |  contraseña: admin
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  depends_on = [module.storage]
 }
