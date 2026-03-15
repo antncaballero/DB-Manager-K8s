@@ -1,12 +1,12 @@
-# ╔═══════════════════════════════════════════════════════════════════════════════╗
+# ╔═════════════════════════════════════════════════════════════════════════════╗
 # ║  outputs.tf – Valores de salida tras aplicar la infraestructura             ║
 # ║                                                                             ║
 # ║  Después de ejecutar `terraform apply`, estos valores se muestran en        ║
-# ║  pantalla. Necesaria para:                           ║
+# ║  pantalla. Necesaria para:                                                  ║
 # ║    - Configurar kubectl para hablar con el cluster                          ║
 # ║    - Saber dónde se conectarán los alumnos                                  ║
 # ║    - Lanzar la app con docker-compose                                       ║
-# ╚═══════════════════════════════════════════════════════════════════════════════╝
+# ╚═════════════════════════════════════════════════════════════════════════════╝
 
 output "cluster_name" {
   description = "Nombre del cluster EKS. Úsalo con: aws eks update-kubeconfig --name <este-valor>"
@@ -47,4 +47,24 @@ output "nlb_dns_note" {
     Los alumnos se conectarán usando:
       <hostname_del_nlb>:<puerto_asignado>
   EOT
+}
+
+output "monitoring_namespace" {
+  description = "Namespace donde está desplegado el stack de monitoring."
+  value       = module.monitoring.namespace
+}
+
+output "monitoring_release_name" {
+  description = "Nombre del release Helm de kube-prometheus-stack."
+  value       = module.monitoring.release_name
+}
+
+output "monitoring_release_status" {
+  description = "Estado del release Helm de monitoring."
+  value       = module.monitoring.release_status
+}
+
+output "grafana_access" {
+  description = "Comando de acceso a Grafana por port-forward y credenciales de login."
+  value       = "kubectl port-forward svc/${var.monitoring_release_name}-grafana 33000:80 -n ${var.monitoring_namespace}  |  URL: http://localhost:33000  |  usuario: admin  |  contraseña: (valor de TF_VAR_monitoring_grafana_admin_password)"
 }

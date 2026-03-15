@@ -14,63 +14,63 @@
 # ║    - Grafana expuesto como ClusterIP → acceso via: kubectl port-forward      ║
 # ║                                                                              ║
 # ║  Acceso a Grafana:                                                           ║
-# ║    kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
-# ║    URL: http://localhost:3000  usuario: admin  contraseña: admin             ║
+# ║    kubectl port-forward svc/kube-prometheus-stack-grafana 33000:80 -n monitoring
+# ║    URL: http://localhost:33000  usuario: admin  contraseña: admin             ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 resource "kubernetes_namespace" "monitoring" {
   metadata {
-    name = "monitoring"
+    name = var.namespace
   }
 }
 
 resource "helm_release" "kube_prometheus_stack" {
-  name       = "kube-prometheus-stack"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "kube-prometheus-stack"
-  namespace  = "monitoring"
-  version    = "69.3.2" # Versión estable
+  name       = var.release_name
+  repository = var.repository
+  chart      = var.chart
+  namespace  = var.namespace
+  version    = var.chart_version # Versión estable
 
-  wait    = true
-  timeout = 600 # 10 min
+  wait    = var.wait
+  timeout = var.timeout # 10 min
 
   # ── AlertManager: deshabilitado (no necesario para un TFG) ────────────────
   set {
     name  = "alertmanager.enabled"
-    value = "false"
+    value = tostring(var.alertmanager_enabled)
   }
 
   # ── Prometheus: retención 7 días, persistencia 5 Gi con gp3 ─────────────
   set {
     name  = "prometheus.prometheusSpec.retention"
-    value = "7d"
+    value = var.prometheus_retention
   }
 
   set {
     name  = "prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName"
-    value = "gp3"
+    value = var.prometheus_storage_class_name
   }
 
   set {
     name  = "prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage"
-    value = "5Gi"
+    value = var.prometheus_storage_size
   }
 
   # ── Grafana: sin persistencia, contraseña admin sencilla ─────────────────
   set {
     name  = "grafana.adminPassword"
-    value = "admin"
+    value = var.grafana_admin_password
   }
 
   set {
     name  = "grafana.persistence.enabled"
-    value = "false"
+    value = tostring(var.grafana_persistence_enabled)
   }
 
   # Grafana como ClusterIP (más seguro, usando kubectl port-forward para acceder)
   set {
     name  = "grafana.service.type"
-    value = "ClusterIP"
+    value = var.grafana_service_type
   }
 
   depends_on = [kubernetes_namespace.monitoring]

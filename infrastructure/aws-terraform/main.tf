@@ -75,10 +75,25 @@ module "nginx_ingress" {
 #  5. MONITORING – Prometheus + Grafana
 # ═══════════════════════════════════════════════════════════════════════════════
 # Instala kube-prometheus-stack en el namespace "monitoring".
-# Acceso a Grafana: kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
-# URL: http://localhost:3000  |  usuario: admin  |  contraseña: admin
+# Acceso a Grafana: kubectl port-forward svc/kube-prometheus-stack-grafana 33000:80 -n monitoring
+# URL: http://localhost:33000  |  usuario: admin  |  contraseña: admin
 module "monitoring" {
   source = "./modules/monitoring"
+
+  namespace                  = var.monitoring_namespace
+  release_name               = var.monitoring_release_name
+  repository                 = var.monitoring_repository
+  chart                      = var.monitoring_chart
+  chart_version              = var.monitoring_chart_version
+  wait                       = var.monitoring_wait
+  timeout                    = var.monitoring_timeout
+  alertmanager_enabled       = var.monitoring_alertmanager_enabled
+  prometheus_retention       = var.monitoring_prometheus_retention
+  prometheus_storage_class_name = var.monitoring_prometheus_storage_class_name
+  prometheus_storage_size    = var.monitoring_prometheus_storage_size
+  grafana_admin_password     = var.monitoring_grafana_admin_password
+  grafana_persistence_enabled = var.monitoring_grafana_persistence_enabled
+  grafana_service_type       = var.monitoring_grafana_service_type
 
   depends_on = [module.storage]
 }

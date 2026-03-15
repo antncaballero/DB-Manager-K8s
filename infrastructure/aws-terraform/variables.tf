@@ -125,3 +125,92 @@ variable "mongo_port_range_end" {
   type        = number
   default     = 27040
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MONITORING (Prometheus + Grafana)
+# ─────────────────────────────────────────────────────────────────────────────
+
+variable "monitoring_namespace" {
+  description = "Namespace donde se desplegará kube-prometheus-stack."
+  type        = string
+  default     = "monitoring"
+}
+
+variable "monitoring_release_name" {
+  description = "Nombre del release Helm de kube-prometheus-stack."
+  type        = string
+  default     = "kube-prometheus-stack"
+}
+
+variable "monitoring_repository" {
+  description = "Repositorio Helm para kube-prometheus-stack."
+  type        = string
+  default     = "https://prometheus-community.github.io/helm-charts"
+}
+
+variable "monitoring_chart" {
+  description = "Nombre del chart Helm de monitoring."
+  type        = string
+  default     = "kube-prometheus-stack"
+}
+
+variable "monitoring_chart_version" {
+  description = "Versión del chart Helm de monitoring."
+  type        = string
+  default     = "69.3.2"
+}
+
+variable "monitoring_wait" {
+  description = "Si Terraform debe esperar a que el release de monitoring esté listo."
+  type        = bool
+  default     = true
+}
+
+variable "monitoring_timeout" {
+  description = "Timeout (segundos) para instalar el stack de monitoring."
+  type        = number
+  default     = 600
+}
+
+variable "monitoring_alertmanager_enabled" {
+  description = "Habilita/deshabilita AlertManager."
+  type        = bool
+  default     = false
+}
+
+variable "monitoring_prometheus_retention" {
+  description = "Retención de Prometheus."
+  type        = string
+  default     = "7d"
+}
+
+variable "monitoring_prometheus_storage_class_name" {
+  description = "StorageClass para el volumen de Prometheus."
+  type        = string
+  default     = "gp3"
+}
+
+variable "monitoring_prometheus_storage_size" {
+  description = "Tamaño del volumen persistente de Prometheus."
+  type        = string
+  default     = "5Gi"
+}
+
+variable "monitoring_grafana_admin_password" {
+  description = "Contraseña del usuario admin de Grafana."
+  type        = string
+  default     = "admin"
+  sensitive   = true
+}
+
+variable "monitoring_grafana_persistence_enabled" {
+  description = "Activa o no persistencia en Grafana."
+  type        = bool
+  default     = false
+}
+
+variable "monitoring_grafana_service_type" {
+  description = "Tipo de Service para Grafana."
+  type        = string
+  default     = "ClusterIP"
+}
