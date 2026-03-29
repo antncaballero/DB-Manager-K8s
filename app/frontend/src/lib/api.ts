@@ -9,10 +9,21 @@ import type {
 } from "@/types";
 
 /**
- * Base URL de la API.
- * En desarrollo local apunta al backend directo; en producción pasa por el proxy Nginx.
+ * Base URL de la API
  */
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+
+export class ApiHttpError extends Error {
+  status: number;
+  detail?: unknown;
+
+  constructor(status: number, message: string, detail?: unknown) {
+    super(message);
+    this.name = "ApiHttpError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
 
 async function request<T>(
   endpoint: string,
@@ -27,8 +38,8 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    const detail = body?.detail ?? res.statusText;
-    throw new Error(detail);
+    const detail = body?.detail ?? res.statusText ?? "HTTP error";
+    throw new ApiHttpError(res.status, String(detail), body);
   }
 
   return res.json() as Promise<T>;

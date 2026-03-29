@@ -135,10 +135,12 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
                 {deployment.port_mappings.map((pm) => (
                   <div
                     key={pm.external_port}
-                    className="flex items-center justify-between text-xs"
+                    className="flex min-w-0 items-start justify-between gap-2 text-xs"
                   >
-                    <span className="text-muted-foreground">{pm.student_name}</span>
-                    <code className="rounded bg-background px-1.5 py-0.5 font-mono text-[11px]">
+                    <span className="shrink-0 text-muted-foreground">
+                      {pm.student_name}
+                    </span>
+                    <code className="block max-w-[70%] break-all whitespace-normal rounded bg-background px-1.5 py-0.5 font-mono text-[11px] text-right">
                       {deployment.external_ip}:{pm.external_port}
                     </code>
                   </div>

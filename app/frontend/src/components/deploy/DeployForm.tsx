@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDeployDatabase } from "@/hooks/useDeployDatabase";
+import { ApiHttpError } from "@/lib/api";
 import type { DBType } from "@/types";
 import { Rocket } from "lucide-react";
 
@@ -37,21 +38,52 @@ export default function DeployForm() {
   const canSubmit =
     className.length >= 2 && classNameValid && +numStudents > 0 && +numStudents <= 25;
 
+  const isLikelyGatewayTimeout = (err: unknown) => {
+    if (err instanceof ApiHttpError) {
+      return err.status === 504 || err.status === 502;
+    }
+
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === "string"
+          ? err
+          : "";
+
+    return /504|gateway[\s-]?time[\s-]?out|timed out|timeout/i.test(msg);
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
 
     try {
+      toast.info(
+        "Desplegando base de datos. El primer despliegue puede tardar varios minutos...",
+        { duration: 10000 }
+      );
+
       const result = await deploy({
         db_type: dbType,
         class_name: className,
         num_students: Number(numStudents),
         namespace,
       });
+
       toast.success(result.message);
       navigate("/");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al desplegar");
+      if (isLikelyGatewayTimeout(err)) {
+        toast.warning(
+          "El despliegue sigue en progreso en el backend. Ve al Dashboard y actualiza periódicamente; las BBDD aparecerán en breve.",
+          { duration: 10000 }
+        );
+        navigate("/");
+        return;
+      }
+
+      console.error("Error al desplegar:", err);
+      toast.error("Error al desplegar", { duration: 10000 });
     }
   }
 
