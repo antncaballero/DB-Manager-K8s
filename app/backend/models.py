@@ -66,24 +66,12 @@ class DeployRequest(BaseModel):
 
 class DestroyRequest(BaseModel):
     """Cuerpo de la petición DELETE /destroy."""
-    db_type: DBType = Field(
-        ...,
-        description="Tipo de base de datos a eliminar (mysql | mongo).",
-        examples=["mysql"],
-    )
     class_name: str = Field(
         ...,
         min_length=1,
         max_length=63,
         description="Nombre de la release de Helm a destruir.",
         examples=["bd-2025-turno1"],
-    )
-    num_students: int = Field(
-        ...,
-        gt=0,
-        le=25,
-        description="Número de alumnos (necesario para limpiar los puertos del ConfigMap).",
-        examples=[5],
     )
     namespace: str = Field(
         default="default",

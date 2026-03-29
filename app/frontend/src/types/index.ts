@@ -22,9 +22,7 @@ export interface DeployResponse {
 }
 
 export interface DestroyRequest {
-  db_type: DBType;
   class_name: string;
-  num_students: number;
   namespace: string;
 }
 

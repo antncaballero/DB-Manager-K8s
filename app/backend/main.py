@@ -15,7 +15,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
-    DBType,
     DeployRequest,
     DeployResponse,
     DeploymentInfo,
@@ -138,15 +137,13 @@ def destroy(req: DestroyRequest) -> DestroyResponse:
       2. Elimina las entradas del ConfigMap `tcp-services`.
     """
     logger.info(
-        "DELETE /destroy – db_type=%s, class_name=%s, num_students=%d, namespace=%s",
-        req.db_type.value, req.class_name, req.num_students, req.namespace,
+        "DELETE /destroy – class_name=%s, namespace=%s",
+        req.class_name, req.namespace,
     )
 
     try:
         k8s_manager.destroy_class(
-            db_type=req.db_type,
             class_name=req.class_name,
-            num_students=req.num_students,
             namespace=req.namespace,
         )
     except RuntimeError as exc:

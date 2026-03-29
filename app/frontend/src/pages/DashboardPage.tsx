@@ -7,7 +7,7 @@ import DatabaseCard from "@/components/databases/DatabaseCard";
 import DestroyDialog from "@/components/databases/DestroyDialog";
 import { useDatabases } from "@/hooks/useDatabases";
 import { useDestroyDatabase } from "@/hooks/useDestroyDatabase";
-import type { DBType, DeploymentInfo } from "@/types";
+import type { DeploymentInfo } from "@/types";
 
 export default function DashboardPage() {
   const { deployments, loading, error, refresh } = useDatabases();
@@ -16,15 +16,13 @@ export default function DashboardPage() {
   const [target, setTarget] = useState<DeploymentInfo | null>(null);
   const [destroyingRelease, setDestroyingRelease] = useState<string | null>(null);
 
-  async function handleConfirmDestroy(numStudents: number) {
+  async function handleConfirmDestroy() {
     if (!target) return;
 
     setDestroyingRelease(target.release_name);
     try {
       const result = await destroy({
-        db_type: target.db_type as DBType,
         class_name: target.release_name,
-        num_students: numStudents,
         namespace: target.namespace,
       });
       toast.success(result.message);

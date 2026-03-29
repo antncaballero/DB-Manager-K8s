@@ -246,33 +246,25 @@ def update_tcp_configmap(mappings: list[dict[str, Any]]) -> None:
 
 
 def clean_tcp_configmap(
-    db_type: DBType,
     class_name: str,
-    num_students: int,
     namespace: str = "default",
 ) -> None:
     """Elimina del ConfigMap tcp-services las entradas correspondientes a una clase.
 
-    Busca en el ConfigMap actual las entradas cuyo valor apunta a los servicios
-    de esta clase y las elimina.
+    Busca en el ConfigMap actual las entradas cuyo valor apunta a servicios
+    con prefijo `{namespace}/{class_name}-` y las elimina.
     """
-    config = DB_CONFIG[db_type]
-    internal_port: int = config["internal_port"]
-    names = set(generate_instance_names(class_name, num_students))
-
     current_data = _get_tcp_configmap()
     if not current_data:
         logger.info("ConfigMap tcp-services está vacío, nada que limpiar.")
         return
 
-    # Construir los valores esperados para identificar las entradas a borrar
-    # Formato de valor: "namespace/nombre-servicio:puerto"
-    expected_values = {f"{namespace}/{n}:{internal_port}" for n in names}
+    release_prefix = f"{namespace}/{class_name}-"
 
     cleaned_data = {
         port: svc
         for port, svc in current_data.items()
-        if svc not in expected_values
+        if not svc.startswith(release_prefix)
     }
 
     removed = len(current_data) - len(cleaned_data)
@@ -579,9 +571,7 @@ def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
 
 
 def destroy_class(
-    db_type: DBType,
     class_name: str,
-    num_students: int,
     namespace: str = "default",
 ) -> None:
     """Orquesta la destrucción completa de una clase.
@@ -596,7 +586,7 @@ def destroy_class(
     helm_uninstall(release_name, namespace)
 
     # 2. Limpiar ConfigMap
-    clean_tcp_configmap(db_type, class_name, num_students, namespace)
+    clean_tcp_configmap(class_name, namespace)
 
     # 3. Sincronizar puertos del Service del Ingress
     _sync_ingress_service_ports()
