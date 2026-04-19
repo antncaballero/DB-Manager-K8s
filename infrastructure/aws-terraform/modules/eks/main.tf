@@ -203,6 +203,8 @@ resource "aws_eks_node_group" "main" {
 
   tags = {
     Name = "${var.project_name}-nodes"
+    "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
+    "k8s.io/cluster-autoscaler/enabled"                     = "true"
   }
 }
 

@@ -68,3 +68,18 @@ output "grafana_access" {
   description = "Comando de acceso a Grafana por port-forward y credenciales de login."
   value       = "kubectl port-forward svc/${var.monitoring_release_name}-grafana 33000:80 -n ${var.monitoring_namespace}  |  URL: http://localhost:33000  |  usuario: admin  |  contraseña: (valor de TF_VAR_monitoring_grafana_admin_password)"
 }
+
+output "cluster_autoscaler_namespace" {
+  description = "Namespace donde está desplegado Cluster Autoscaler."
+  value       = module.cluster_autoscaler.namespace
+}
+
+output "cluster_autoscaler_release_name" {
+  description = "Nombre del release Helm de Cluster Autoscaler."
+  value       = module.cluster_autoscaler.release_name
+}
+
+output "cluster_autoscaler_release_status" {
+  description = "Estado del release Helm de Cluster Autoscaler."
+  value       = module.cluster_autoscaler.release_status
+}
