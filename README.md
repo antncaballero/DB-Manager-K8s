@@ -6,9 +6,18 @@ El proyecto está centrado en **Infraestructura como Código (IaC) con Terraform
 
 ## Introducción
 
-DB Manager K8s permite a un docente desplegar, visualizar, despertar y destruir entornos de bases de datos por clase de forma centralizada.
+Este proyecto permite a un docente desplegar, visualizar, despertar y destruir entornos de bases de datos por clase de forma centralizada.
 
-Para cada clase, el sistema despliega una release de Helm y genera instancias de MySQL o MongoDB por alumno, asignando puertos de acceso externos de forma automática.
+Para cada clase, el sistema despliega una release de Helm y genera instancias de MySQL o MongoDB por alumno, asignando puertos de acceso externos de forma automática. El acceso a estas instancias se realiza mediante una IP pública común y puertos seguidos, por ejemplo:
+
+- Alumno 1: 172.16.0.10:3306
+- Alumno 2: 172.16.0.10:3307
+- Alumno 3: 172.16.0.10:3308
+- ...
+
+Además, el sistema monitoriza el tráfico de las bases de datos y hiberna automáticamente aquellas instancias que llevan tiempo inactivas, optimizando recursos. Mediante la interfaz web, el docente puede gestionar fácilmente los despliegues y despertar instancias hibernadas bajo demanda.
+
+Se incluye una capa de monitorización con Prometheus y Grafana para visualizar el estado de los despliegues, tráfico y métricas relevantes.
 
 ## ¿De qué está compuesto?
 
@@ -107,8 +116,10 @@ Desde la interfaz web se puede:
 
 - Desplegar entornos por clase (`mysql` o `mongo`).
 - Listar despliegues activos.
-- Despertar despliegues hibernados.
+- Despertar instancias de bases de datos hibernadas.
 - Destruir despliegues.
+
+Además, automáticamente, el sistema hiberna instancias de bases de datos inactivas (sin tráfico) cada 10 minutos.
 
 ## Destrucción y limpieza
 
