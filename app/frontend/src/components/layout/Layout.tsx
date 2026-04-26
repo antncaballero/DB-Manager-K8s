@@ -1,10 +1,11 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Database, Rocket } from "lucide-react";
+import { Database, Power, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 const NAV_ITEMS = [
   { to: "/", label: "Bases de datos", icon: Database },
+  { to: "/wake", label: "Despertar", icon: Power },
   { to: "/deploy", label: "Desplegar", icon: Rocket },
 ] as const;
 

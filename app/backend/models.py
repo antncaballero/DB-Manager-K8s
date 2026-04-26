@@ -133,3 +133,44 @@ class WakeDeploymentResponse(BaseModel):
     message: str
     release_name: str
     namespace: str
+
+
+class WakeReleaseOption(BaseModel):
+    """Release disponible para operaciones de wakeup."""
+    release_name: str
+    namespace: str
+    db_type: str
+    status: str
+    statefulsets: int
+
+
+class ListWakeReleasesResponse(BaseModel):
+    """Respuesta de GET /wake/releases."""
+    releases: list[WakeReleaseOption]
+
+
+class StatefulSetWakeInfo(BaseModel):
+    """Información de wakeup de un StatefulSet dentro de una release."""
+    name: str
+    namespace: str
+    release_name: str
+    desired_replicas: int
+    ready_replicas: int
+    status: str
+    can_wake: bool
+
+
+class ListReleaseStatefulSetsResponse(BaseModel):
+    """Respuesta de GET /wake/releases/{release_name}/statefulsets."""
+    release_name: str
+    namespace: str
+    statefulsets: list[StatefulSetWakeInfo]
+
+
+class WakeStatefulSetResponse(BaseModel):
+    """Respuesta de POST /wake/releases/{release_name}/statefulsets/{statefulset_name}."""
+    message: str
+    release_name: str
+    namespace: str
+    statefulset_name: str
+    already_active: bool

@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import Layout from "@/components/layout/Layout";
 import DashboardPage from "@/pages/DashboardPage";
 import DeployPage from "@/pages/DeployPage";
+import WakePage from "@/pages/WakePage";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
           <Route path="deploy" element={<DeployPage />} />
+          <Route path="wake" element={<WakePage />} />
         </Route>
       </Routes>
       <Toaster richColors position="bottom-right" />

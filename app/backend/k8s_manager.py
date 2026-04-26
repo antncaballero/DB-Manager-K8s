@@ -202,7 +202,7 @@ def list_active_statefulsets(namespace: str | None = None) -> list[dict[str, Any
 def _build_idle_promql(namespace: str, statefulset_name: str) -> str:
     return (
         "sum(rate(container_network_transmit_bytes_total"
-        f'{{namespace="{namespace}", pod=~"^{statefulset_name}-.*"}}[10m])) '
+        f'{{namespace="{namespace}", pod=~"^{statefulset_name}-.*"}}[3m])) '
         "by (pod) < 50"
     )
 
@@ -306,6 +306,141 @@ def wake_release(release_name: str, namespace: str, timeout_seconds: int = 90) -
             raise RuntimeError(
                 f"Timeout al esperar el arranque de {statefulset_name} en namespace {namespace}."
             ) from exc
+
+
+def _resolve_release(release_name: str, namespace: str) -> dict[str, Any]:
+    """Resuelve y valida una release Helm gestionada por la aplicación."""
+    releases = _list_helm_releases(namespace=namespace)
+    release = next(
+        (
+            rel for rel in releases
+            if rel.get("name") == release_name and rel.get("namespace", "default") == namespace
+        ),
+        None,
+    )
+    if release is None:
+        raise RuntimeError(f"No se encontró la release '{release_name}' en namespace '{namespace}'.")
+
+    db_type = _resolve_db_type_from_chart(release.get("chart", ""))
+    if db_type is None:
+        raise RuntimeError(
+            f"La release '{release_name}' no corresponde a un chart gestionado por la aplicación."
+        )
+
+    return release
+
+
+def _statefulset_status(desired_replicas: int, ready_replicas: int) -> str:
+    if desired_replicas <= 0:
+        return "hibernating"
+    if ready_replicas >= desired_replicas:
+        return "active"
+    return "starting"
+
+
+def list_wake_releases(namespace: str | None = None) -> list[dict[str, Any]]:
+    """Lista releases gestionadas por la app para selector de wakeup."""
+    deployments = list_deployments(namespace=namespace)
+    releases = [
+        {
+            "release_name": d["release_name"],
+            "namespace": d["namespace"],
+            "db_type": d["db_type"],
+            "status": d["status"],
+            "statefulsets": d["statefulsets"],
+        }
+        for d in deployments
+    ]
+    releases.sort(key=lambda rel: (rel["namespace"], rel["release_name"]))
+    return releases
+
+
+def list_release_statefulsets(release_name: str, namespace: str) -> list[dict[str, Any]]:
+    """Lista StatefulSets de una release con estado y posibilidad de wake."""
+    _resolve_release(release_name, namespace)
+
+    items = _get_statefulsets_for_release(release_name, namespace)
+    statefulsets: list[dict[str, Any]] = []
+    for item in items:
+        metadata = item.get("metadata", {})
+        spec = item.get("spec", {})
+        status = item.get("status", {})
+
+        name = metadata.get("name", "")
+        if not name:
+            continue
+
+        desired_replicas = int(spec.get("replicas", 0) or 0)
+        ready_replicas = int(status.get("readyReplicas", 0) or 0)
+        sts_namespace = metadata.get("namespace", namespace)
+        sts_status = _statefulset_status(desired_replicas, ready_replicas)
+
+        statefulsets.append(
+            {
+                "name": name,
+                "namespace": sts_namespace,
+                "release_name": release_name,
+                "desired_replicas": desired_replicas,
+                "ready_replicas": ready_replicas,
+                "status": sts_status,
+                "can_wake": desired_replicas == 0,
+            }
+        )
+
+    statefulsets.sort(key=lambda sts: sts["name"])
+    return statefulsets
+
+
+def wake_statefulset(
+    release_name: str,
+    statefulset_name: str,
+    namespace: str,
+    timeout_seconds: int = 90,
+) -> bool:
+    """Despierta un StatefulSet concreto de una release.
+
+    Devuelve True si se ha despertado y False si ya estaba activo.
+    """
+    _resolve_release(release_name, namespace)
+
+    items = _get_statefulsets_for_release(release_name, namespace)
+    target = next(
+        (
+            item for item in items
+            if item.get("metadata", {}).get("name", "") == statefulset_name
+        ),
+        None,
+    )
+    if target is None:
+        raise RuntimeError(
+            f"No se encontró el StatefulSet '{statefulset_name}' para la release '{release_name}' en namespace '{namespace}'."
+        )
+
+    target_namespace = target.get("metadata", {}).get("namespace", namespace)
+    desired_replicas = int(target.get("spec", {}).get("replicas", 0) or 0)
+
+    if desired_replicas > 0:
+        return False
+
+    scale_statefulset(statefulset_name, target_namespace, replicas=1)
+
+    rollout_cmd = [
+        "kubectl",
+        "rollout",
+        "status",
+        f"statefulset/{statefulset_name}",
+        "-n",
+        target_namespace,
+        f"--timeout={timeout_seconds}s",
+    ]
+    try:
+        _run(rollout_cmd, timeout=timeout_seconds + 20)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Timeout al esperar el arranque de {statefulset_name} en namespace {target_namespace}."
+        ) from exc
+
+    return True
 
 def helm_deploy(
     release_name: str,

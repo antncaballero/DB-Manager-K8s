@@ -22,9 +22,14 @@ from models import (
     DeploymentInfo,
     DestroyRequest,
     DestroyResponse,
+    ListReleaseStatefulSetsResponse,
     ListDeploymentsResponse,
+    ListWakeReleasesResponse,
     PortMapping,
+    StatefulSetWakeInfo,
+    WakeReleaseOption,
     WakeDeploymentResponse,
+    WakeStatefulSetResponse,
 )
 import k8s_manager
 
@@ -97,8 +102,8 @@ async def hibernation_worker() -> None:
         except Exception:
             logger.exception("Error inesperado en hibernation worker.")
 
-        await asyncio.sleep(600)
-        # await asyncio.sleep(120)  # Para pruebas, hibernar cada 2 minutos
+        # await asyncio.sleep(600)
+        await asyncio.sleep(180)  # Para pruebas, hibernar cada 3 minutos
 
 
 @app.on_event("startup")
@@ -254,4 +259,134 @@ def wake_deployment(
         message=f"Entorno '{release_name}' despertado correctamente.",
         release_name=release_name,
         namespace=namespace,
+    )
+
+
+@app.get("/wake/releases", response_model=ListWakeReleasesResponse)
+def list_wake_releases(namespace: str | None = None) -> ListWakeReleasesResponse:
+    """Lista releases disponibles para wakeup granular."""
+    logger.info("GET /wake/releases – namespace=%s", namespace)
+
+    try:
+        raw = k8s_manager.list_wake_releases(namespace=namespace)
+    except Exception as exc:
+        logger.exception("Error al listar releases para wakeup.")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al listar releases para wakeup: {exc}",
+        ) from exc
+
+    releases = [WakeReleaseOption(**release) for release in raw]
+    return ListWakeReleasesResponse(releases=releases)
+
+
+@app.get(
+    "/wake/releases/{release_name}/statefulsets",
+    response_model=ListReleaseStatefulSetsResponse,
+)
+def list_release_statefulsets(
+    release_name: str,
+    namespace: str = Query(default="default"),
+) -> ListReleaseStatefulSetsResponse:
+    """Lista StatefulSets de una release para wakeup individual."""
+    logger.info(
+        "GET /wake/releases/%s/statefulsets – namespace=%s",
+        release_name,
+        namespace,
+    )
+
+    try:
+        raw = k8s_manager.list_release_statefulsets(
+            release_name=release_name,
+            namespace=namespace,
+        )
+    except RuntimeError as exc:
+        logger.error(
+            "Error al listar StatefulSets de %s/%s: %s",
+            namespace,
+            release_name,
+            exc,
+        )
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception(
+            "Error inesperado al listar StatefulSets de %s/%s.",
+            namespace,
+            release_name,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado al listar StatefulSets: {exc}",
+        ) from exc
+
+    statefulsets = [StatefulSetWakeInfo(**item) for item in raw]
+    return ListReleaseStatefulSetsResponse(
+        release_name=release_name,
+        namespace=namespace,
+        statefulsets=statefulsets,
+    )
+
+
+@app.post(
+    "/wake/releases/{release_name}/statefulsets/{statefulset_name}",
+    response_model=WakeStatefulSetResponse,
+)
+def wake_single_statefulset(
+    release_name: str,
+    statefulset_name: str,
+    namespace: str = Query(default="default"),
+) -> WakeStatefulSetResponse:
+    """Despierta un StatefulSet concreto de una release."""
+    logger.info(
+        "POST /wake/releases/%s/statefulsets/%s – namespace=%s",
+        release_name,
+        statefulset_name,
+        namespace,
+    )
+
+    try:
+        woke = k8s_manager.wake_statefulset(
+            release_name=release_name,
+            statefulset_name=statefulset_name,
+            namespace=namespace,
+            timeout_seconds=90,
+        )
+    except RuntimeError as exc:
+        logger.error(
+            "Error al despertar StatefulSet %s en %s/%s: %s",
+            statefulset_name,
+            namespace,
+            release_name,
+            exc,
+        )
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception(
+            "Error inesperado durante wake de %s en %s/%s.",
+            statefulset_name,
+            namespace,
+            release_name,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado en wake de StatefulSet: {exc}",
+        ) from exc
+
+    if woke:
+        message = (
+            f"StatefulSet '{statefulset_name}' despertado correctamente "
+            f"en release '{release_name}'."
+        )
+    else:
+        message = (
+            f"StatefulSet '{statefulset_name}' ya estaba activo "
+            f"en release '{release_name}'."
+        )
+
+    return WakeStatefulSetResponse(
+        message=message,
+        release_name=release_name,
+        namespace=namespace,
+        statefulset_name=statefulset_name,
+        already_active=not woke,
     )

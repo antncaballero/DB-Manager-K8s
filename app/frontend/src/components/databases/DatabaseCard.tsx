@@ -11,14 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { DeploymentInfo } from "@/types";
-import { ChevronDown, ChevronUp, Globe, Loader2, ServerCrash, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Globe, ServerCrash, Trash2 } from "lucide-react";
 
 interface Props {
   deployment: DeploymentInfo;
   onDestroy: (d: DeploymentInfo) => void;
-  onWake: (d: DeploymentInfo) => void;
   destroying: boolean;
-  waking: boolean;
 }
 
 function statusVariant(status: string) {
@@ -42,7 +40,7 @@ function dbLabel(dbType: string) {
   return dbType;
 }
 
-export default function DatabaseCard({ deployment, onDestroy, onWake, destroying, waking }: Props) {
+export default function DatabaseCard({ deployment, onDestroy, destroying }: Props) {
   const [showConnections, setShowConnections] = useState(false);
   const isHibernating = deployment.status === "hibernating";
 
@@ -165,23 +163,6 @@ export default function DatabaseCard({ deployment, onDestroy, onWake, destroying
           </>
         )}
 
-        {isHibernating && (
-          <>
-            <Separator className="my-2" />
-            <Button
-              variant="default"
-              size="sm"
-              className="w-full"
-              disabled={waking}
-              onClick={() => onWake(deployment)}
-            >
-              {waking ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-              ) : null}
-              {waking ? "Despertando…" : "Despertar entorno"}
-            </Button>
-          </>
-        )}
       </CardContent>
 
       <CardFooter>

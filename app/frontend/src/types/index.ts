@@ -37,6 +37,14 @@ export interface WakeDeploymentResponse {
   namespace: string;
 }
 
+export interface WakeStatefulSetResponse {
+  message: string;
+  release_name: string;
+  namespace: string;
+  statefulset_name: string;
+  already_active: boolean;
+}
+
 export interface ConnectionMapping {
   student_name: string;
   external_port: number;
@@ -58,4 +66,32 @@ export interface DeploymentInfo {
 
 export interface ListDeploymentsResponse {
   deployments: DeploymentInfo[];
+}
+
+export interface WakeReleaseOption {
+  release_name: string;
+  namespace: string;
+  db_type: string;
+  status: string;
+  statefulsets: number;
+}
+
+export interface ListWakeReleasesResponse {
+  releases: WakeReleaseOption[];
+}
+
+export interface StatefulSetWakeInfo {
+  name: string;
+  namespace: string;
+  release_name: string;
+  desired_replicas: number;
+  ready_replicas: number;
+  status: "active" | "starting" | "hibernating" | string;
+  can_wake: boolean;
+}
+
+export interface ListReleaseStatefulSetsResponse {
+  release_name: string;
+  namespace: string;
+  statefulsets: StatefulSetWakeInfo[];
 }
