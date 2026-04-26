@@ -1,0 +1,29 @@
+image:
+  repository: cassandra
+  tag: "4.1"
+  pullPolicy: IfNotPresent
+
+auth:
+  username: "cassandra"
+  password: "cassandra_password"
+
+cluster:
+  name: "classroom-cluster"
+
+storage:
+  className: "" # Vacío = usa la StorageClass default del cluster (local-path en k3d, gp3 en EKS)
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "1Gi"
+  limits:
+    memory: "1536Mi"
+
+jvm:
+  maxHeapSize: "512M"
+  heapNewSize: "128M"
+
+# Python rellenará esto
+instances: []

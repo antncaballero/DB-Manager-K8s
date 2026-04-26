@@ -1,0 +1,21 @@
+image:
+  repository: redis
+  tag: "7.2"
+  pullPolicy: IfNotPresent
+
+auth:
+  password: "redis_password"
+
+storage:
+  className: "" # Vacío = usa la StorageClass default del cluster (local-path en k3d, gp3 en EKS)
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    memory: "512Mi"
+
+# Python rellenará esto
+instances: []

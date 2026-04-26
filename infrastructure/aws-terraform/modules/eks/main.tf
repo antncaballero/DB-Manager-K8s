@@ -83,6 +83,24 @@ resource "aws_security_group" "eks_nodes" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Rango de puertos TCP para Redis (6379-6404) – acceso desde internet
+  ingress {
+    description = "Redis TCP ports"
+    from_port   = var.redis_port_range_start
+    to_port     = var.redis_port_range_end
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Rango de puertos TCP para Cassandra (9042-9067) – acceso desde internet
+  ingress {
+    description = "Cassandra TCP ports"
+    from_port   = var.cassandra_port_range_start
+    to_port     = var.cassandra_port_range_end
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Permitir TODA la salida (nodos necesitan descargar imágenes, hablar con API, etc.)
   egress {
     description = "Salida a internet"

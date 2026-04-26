@@ -27,3 +27,7 @@ mysql_port_range_start = 3306
 mysql_port_range_end   = 3330
 mongo_port_range_start = 27017
 mongo_port_range_end   = 27040
+redis_port_range_start = 6379
+redis_port_range_end   = 6404
+cassandra_port_range_start = 9042
+cassandra_port_range_end   = 9067

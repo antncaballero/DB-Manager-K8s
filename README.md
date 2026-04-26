@@ -8,7 +8,7 @@ El proyecto está centrado en **Infraestructura como Código (IaC) con Terraform
 
 Este proyecto permite a un docente desplegar, visualizar, despertar y destruir entornos de bases de datos por clase de forma centralizada.
 
-Para cada clase, el sistema despliega una release de Helm y genera instancias de MySQL o MongoDB por alumno, asignando puertos de acceso externos de forma automática. El acceso a estas instancias se realiza mediante una IP pública común y puertos seguidos, por ejemplo:
+Para cada clase, el sistema despliega una release de Helm y genera instancias de MySQL, MongoDB, Redis o Cassandra por alumno, asignando puertos de acceso externos de forma automática. El acceso a estas instancias se realiza mediante una IP pública común y puertos seguidos, por ejemplo:
 
 - Alumno 1: 172.16.0.10:3306
 - Alumno 2: 172.16.0.10:3307
@@ -30,7 +30,9 @@ tfg-db-manager/
 │  └─ docker-compose.k3d.yaml  # App conectada a cluster local k3d
 ├─ charts/
 │  ├─ mysql-class/             # Chart Helm para despliegues de clase MySQL
-│  └─ mongo-class/             # Chart Helm para despliegues de clase MongoDB
+│  ├─ mongo-class/             # Chart Helm para despliegues de clase MongoDB
+│  ├─ redis-class/             # Chart Helm para despliegues de clase Redis
+│  └─ cassandra-class/         # Chart Helm para despliegues de clase Cassandra
 └─ infrastructure/
    ├─ aws-terraform/           # IaC en AWS (VPC, EKS, ingress, storage, monitoring)
    └─ local/setup-k3d.sh       # Preparación del entorno local con k3d
@@ -114,10 +116,19 @@ Accesos:
 
 Desde la interfaz web se puede:
 
-- Desplegar entornos por clase (`mysql` o `mongo`).
+- Desplegar entornos por clase (`mysql`, `mongo`, `redis` o `cassandra`).
 - Listar despliegues activos.
 - Despertar instancias de bases de datos hibernadas.
 - Destruir despliegues.
+
+Rangos de puertos TCP usados por tipo de base de datos:
+
+- MySQL: `3306-3330`
+- MongoDB: `27017-27040`
+- Redis: `6379-6404`
+- Cassandra: `9042-9067`
+
+Nota: Redis se despliega con persistencia en volumen y AOF habilitado para conservar datos al hibernar/despertar.
 
 Además, automáticamente, el sistema hiberna instancias de bases de datos inactivas (sin tráfico) cada 10 minutos.
 

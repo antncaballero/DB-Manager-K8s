@@ -6,11 +6,15 @@ echo "---- Creando cluster k3d..."
 # - 80/443 para el tráfico web/API
 # - 3306-3330 para instancias SQL
 # - 27017-27040 para instancias NoSQL (Mongo)
-k3d cluster create tfg-cluster \
+# - 6379-6404 para instancias Redis
+# - 9042-9067 para instancias Cassandra
+k3d cluster create tfg-cluster --k3s-arg "--disable=traefik@server:0" \
   -p "80:80@loadbalancer" \
   -p "443:443@loadbalancer" \
   -p "3306-3330:3306-3330@loadbalancer" \
   -p "27017-27040:27017-27040@loadbalancer" \
+  -p "6379-6404:6379-6404@loadbalancer" \
+  -p "9042-9067:9042-9067@loadbalancer" \
   --agents 1
 
 echo "---- Instalando NGINX Ingress Controller..."
@@ -35,7 +39,7 @@ helm upgrade --install kube-prometheus-stack kube-prometheus-stack \
   --set prometheus.prometheusSpec.retention=6h \
   --set grafana.adminPassword=admin \
   --set grafana.persistence.enabled=false \
-  --set grafana.service.type=LoadBalancer
+  --set grafana.service.type=ClusterIP
 
 # 1. Crear una copia específica para el contenedor del backend
 cp ~/.kube/config ~/.kube/config-backend
@@ -51,4 +55,5 @@ sed -i "s/127.0.0.1:${CLUSTER_PORT}/k3d-tfg-cluster-server-0:6443/g" ~/.kube/con
 echo "---- Copia de seguridad del config lista para el Backend."
 
 echo "---- Entorno listo."
-echo "# Para grafana: Ejecuta esto en una terminal: kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3300:80"
+echo "# Para grafana ejecuta esto en una terminal: kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3300:80"
+echo "# Y abre http://localhost:3300 con user: admin y password: admin"

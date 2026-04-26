@@ -1,6 +1,6 @@
 // ── Tipos compartidos con la API del backend ────────────────────────────────
 
-export type DBType = "mysql" | "mongo";
+export type DBType = "mysql" | "mongo" | "redis" | "cassandra";
 
 export interface PortMapping {
   student_name: string;

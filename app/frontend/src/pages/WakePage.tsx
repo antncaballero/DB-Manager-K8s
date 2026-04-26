@@ -40,6 +40,8 @@ function statusLabel(status: string) {
 function dbLabel(dbType: string) {
   if (dbType === "mysql") return "MySQL";
   if (dbType === "mongo") return "MongoDB";
+  if (dbType === "redis") return "Redis";
+  if (dbType === "cassandra") return "Cassandra";
   return dbType;
 }
 

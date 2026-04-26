@@ -71,3 +71,27 @@ variable "mongo_port_range_end" {
   description = "Último puerto del rango TCP para MongoDB."
   type        = number
 }
+
+variable "redis_port_range_start" {
+  description = "Primer puerto del rango TCP para Redis."
+  type        = number
+  default     = 6379
+}
+
+variable "redis_port_range_end" {
+  description = "Último puerto del rango TCP para Redis."
+  type        = number
+  default     = 6404
+}
+
+variable "cassandra_port_range_start" {
+  description = "Primer puerto del rango TCP para Cassandra."
+  type        = number
+  default     = 9042
+}
+
+variable "cassandra_port_range_end" {
+  description = "Último puerto del rango TCP para Cassandra."
+  type        = number
+  default     = 9067
+}

@@ -172,6 +172,30 @@ variable "mongo_port_range_end" {
   default     = 27040
 }
 
+variable "redis_port_range_start" {
+  description = "Primer puerto del rango TCP expuesto para Redis."
+  type        = number
+  default     = 6379
+}
+
+variable "redis_port_range_end" {
+  description = "Último puerto del rango TCP expuesto para Redis."
+  type        = number
+  default     = 6404
+}
+
+variable "cassandra_port_range_start" {
+  description = "Primer puerto del rango TCP expuesto para Cassandra."
+  type        = number
+  default     = 9042
+}
+
+variable "cassandra_port_range_end" {
+  description = "Último puerto del rango TCP expuesto para Cassandra."
+  type        = number
+  default     = 9067
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MONITORING (Prometheus + Grafana)
 # ─────────────────────────────────────────────────────────────────────────────

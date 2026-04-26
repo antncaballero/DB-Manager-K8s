@@ -106,6 +106,10 @@ def _resolve_db_type_from_chart(chart: str) -> DBType | None:
         return DBType.MYSQL
     if "mongo" in chart_lower:
         return DBType.MONGO
+    if "redis" in chart_lower:
+        return DBType.REDIS
+    if "cassandra" in chart_lower:
+        return DBType.CASSANDRA
     return None
 
 
@@ -202,7 +206,7 @@ def list_active_statefulsets(namespace: str | None = None) -> list[dict[str, Any
 def _build_idle_promql(namespace: str, statefulset_name: str) -> str:
     return (
         "sum(rate(container_network_transmit_bytes_total"
-        f'{{namespace="{namespace}", pod=~"^{statefulset_name}-.*"}}[3m])) '
+        f'{{namespace="{namespace}", pod=~"^{statefulset_name}-.*"}}[10m])) '
         "by (pod) < 50"
     )
 

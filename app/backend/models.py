@@ -12,6 +12,8 @@ class DBType(str, Enum):
     """Tipos de base de datos que el sistema puede desplegar."""
     MYSQL = "mysql"
     MONGO = "mongo"
+    REDIS = "redis"
+    CASSANDRA = "cassandra"
 
 
 # ── Configuración de puertos por tipo de DB ──────────────────────────────────
@@ -29,6 +31,18 @@ DB_CONFIG = {
         "port_range_start": 27017,
         "port_range_end": 27040,
     },
+    DBType.REDIS: {
+        "chart_path": "/charts/redis-class",
+        "internal_port": 6379,
+        "port_range_start": 6379,
+        "port_range_end": 6404,
+    },
+    DBType.CASSANDRA: {
+        "chart_path": "/charts/cassandra-class",
+        "internal_port": 9042,
+        "port_range_start": 9042,
+        "port_range_end": 9067,
+    },
 }
 
 
@@ -38,7 +52,7 @@ class DeployRequest(BaseModel):
     """Cuerpo de la petición POST /deploy."""
     db_type: DBType = Field(
         ...,
-        description="Tipo de base de datos a desplegar (mysql | mongo).",
+        description="Tipo de base de datos a desplegar (mysql | mongo | redis | cassandra).",
         examples=["mysql"],
     )
     class_name: str = Field(

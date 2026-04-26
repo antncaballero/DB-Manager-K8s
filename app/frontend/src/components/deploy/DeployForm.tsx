@@ -111,6 +111,8 @@ export default function DeployForm() {
               <SelectContent>
                 <SelectItem value="mysql">MySQL</SelectItem>
                 <SelectItem value="mongo">MongoDB</SelectItem>
+                <SelectItem value="redis">Redis</SelectItem>
+                <SelectItem value="cassandra">Cassandra</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -44,6 +44,10 @@ module "eks" {
   mysql_port_range_end   = var.mysql_port_range_end
   mongo_port_range_start = var.mongo_port_range_start
   mongo_port_range_end   = var.mongo_port_range_end
+  redis_port_range_start = var.redis_port_range_start
+  redis_port_range_end   = var.redis_port_range_end
+  cassandra_port_range_start = var.cassandra_port_range_start
+  cassandra_port_range_end   = var.cassandra_port_range_end
 }
 
 

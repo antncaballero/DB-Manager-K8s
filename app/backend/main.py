@@ -45,7 +45,7 @@ app = FastAPI(
     title="TFG DB Manager – Backend API",
     description=(
         "API para desplegar y destruir clusters de bases de datos "
-        "(MySQL / MongoDB) en Kubernetes mediante Helm."
+        "(MySQL / MongoDB / Redis / Cassandra) en Kubernetes mediante Helm."
     ),
     version="0.1.0",
 )
@@ -102,8 +102,8 @@ async def hibernation_worker() -> None:
         except Exception:
             logger.exception("Error inesperado en hibernation worker.")
 
-        # await asyncio.sleep(600)
-        await asyncio.sleep(180)  # Para pruebas, hibernar cada 3 minutos
+        await asyncio.sleep(600)
+        #await asyncio.sleep(180)  # Para pruebas, hibernar cada 3 minutos
 
 
 @app.on_event("startup")
