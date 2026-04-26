@@ -1,9 +1,7 @@
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║  modules/nginx-ingress/main.tf – NGINX Ingress Controller en EKS             ║
 # ║                                                                              ║
-# ║  Instala el mismo NGINX Ingress Controller que se usa en Minikube,           ║
-# ║  pero configurado para AWS:                                                  ║
-# ║    - En Minikube: Service tipo LoadBalancer + minikube tunnel                ║
+# ║  Instala el mismo NGINX Ingress Controller que se usa en k3d,                ║
 # ║    - En AWS:     Service tipo LoadBalancer → AWS crea un NLB automático      ║
 # ║                                                                              ║
 # ║  El NLB (Network Load Balancer) es el punto de entrada desde internet.       ║
@@ -70,7 +68,6 @@ resource "helm_release" "nginx_ingress" {
     value = "internet-facing"
   }
 
-  # ── ConfigMap tcp-services: igual que en Minikube ──────────────────
   # Le decimos al controller de NGINX qué ConfigMap contiene las reglas TCP.
   # El ConfigMap lo crea Terraform (vacío) y el backend lo rellena
   # dinámicamente al desplegar bases de datos (k8s_manager.py).

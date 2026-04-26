@@ -8,8 +8,6 @@
 # ║    4. NGINX Ingress      → necesita el cluster EKS funcionando             ║
 # ║    5. Monitoring         → Prometheus + Grafana (usa StorageClass gp3)     ║
 # ║                                                                             ║
-# ║  Es el equivalente de tu setup-minikube.sh pero para AWS, declarativo      ║
-# ║  e idempotente (puedes ejecutarlo varias veces sin romper nada).            ║
 # ╚═══════════════════════════════════════════════════════════════════════════════╝
 
 

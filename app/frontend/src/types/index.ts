@@ -31,6 +31,12 @@ export interface DestroyResponse {
   release_name: string;
 }
 
+export interface WakeDeploymentResponse {
+  message: string;
+  release_name: string;
+  namespace: string;
+}
+
 export interface ConnectionMapping {
   student_name: string;
   external_port: number;
@@ -42,7 +48,7 @@ export interface DeploymentInfo {
   namespace: string;
   db_type: string;
   chart: string;
-  status: string;
+  status: "active" | "starting" | "hibernating" | string;
   updated: string;
   statefulsets: number;
   ready_instances: number;

@@ -11,7 +11,7 @@ auth:
   database: "practica_db"
 
 storage:
-  className: "" # Vacío = usa la StorageClass default del cluster (standard en Minikube, gp3 en EKS)
+  className: "" # Vacío = usa la StorageClass default del cluster (local-path en k3d, gp3 en EKS)
   size: 1Gi
 
 resources:

@@ -18,6 +18,7 @@ import logging
 import os
 import subprocess
 import tempfile
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 # ── Constantes ────────────────────────────────────────────────────────────────
 INGRESS_NAMESPACE = "ingress-nginx"
 TCP_CONFIGMAP_NAME = "tcp-services"
+PROMETHEUS_NAMESPACE = "monitoring"
+PROMETHEUS_SERVICE = "kube-prometheus-stack-prometheus"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -95,6 +98,214 @@ def _run(cmd: list[str], *, check: bool = True, timeout: int = 120) -> subproces
         )
     return result
 
+
+def _resolve_db_type_from_chart(chart: str) -> DBType | None:
+    """Resuelve tipo de DB gestionado por la app a partir del nombre del chart."""
+    chart_lower = (chart or "").lower()
+    if "mysql" in chart_lower:
+        return DBType.MYSQL
+    if "mongo" in chart_lower:
+        return DBType.MONGO
+    return None
+
+
+def _list_helm_releases(namespace: str | None = None) -> list[dict[str, Any]]:
+    """Lista releases Helm en formato JSON."""
+    cmd = ["helm", "list", "--output", "json"]
+    if namespace:
+        cmd += ["--namespace", namespace]
+    else:
+        cmd += ["--all-namespaces"]
+
+    result = _run(cmd, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        return []
+
+    parsed = json.loads(result.stdout)
+    if isinstance(parsed, list):
+        return parsed
+    if isinstance(parsed, dict):
+        releases = parsed.get("Releases") or parsed.get("releases") or []
+        if isinstance(releases, list):
+            return releases
+    return []
+
+
+def _get_statefulsets_for_release(release_name: str, namespace: str) -> list[dict[str, Any]]:
+    """Obtiene StatefulSets de una release (label Helm + fallback por prefijo)."""
+    sts_cmd = [
+        "kubectl", "get", "statefulsets",
+        "-n", namespace,
+        "-l", f"app.kubernetes.io/instance={release_name}",
+        "-o", "json",
+    ]
+    sts_result = _run(sts_cmd, check=False)
+    items: list[dict[str, Any]] = []
+    if sts_result.returncode == 0 and sts_result.stdout.strip():
+        sts_data = json.loads(sts_result.stdout)
+        items = sts_data.get("items", [])
+
+    if items:
+        return items
+
+    # Fallback
+
+    sts_all_cmd = [
+        "kubectl", "get", "statefulsets",
+        "-n", namespace,
+        "-o", "json",
+    ]
+    sts_all_result = _run(sts_all_cmd, check=False)
+    if sts_all_result.returncode != 0 or not sts_all_result.stdout.strip():
+        return []
+
+    all_data = json.loads(sts_all_result.stdout)
+    return [
+        item for item in all_data.get("items", [])
+        if item.get("metadata", {}).get("name", "").startswith(f"{release_name}-")
+    ]
+
+
+def list_active_statefulsets(namespace: str | None = None) -> list[dict[str, Any]]:
+    """Lista StatefulSets activos (réplicas > 0) de releases gestionadas por la app."""
+    releases = _list_helm_releases(namespace=namespace)
+    active: list[dict[str, Any]] = []
+    for rel in releases:
+        release_name = rel.get("name", "")
+        rel_namespace = rel.get("namespace", "default")
+        db_type = _resolve_db_type_from_chart(rel.get("chart", ""))
+
+        if not release_name or db_type is None:
+            continue
+
+        for item in _get_statefulsets_for_release(release_name, rel_namespace):
+            metadata = item.get("metadata", {})
+            spec = item.get("spec", {})
+            status = item.get("status", {})
+
+            desired = int(spec.get("replicas", 0) or 0)
+            if desired <= 0:
+                continue
+
+            active.append({
+                "name": metadata.get("name", ""),
+                "namespace": metadata.get("namespace", rel_namespace),
+                "release_name": release_name,
+                "db_type": db_type.value,
+                "desired_replicas": desired,
+                "ready_replicas": int(status.get("readyReplicas", 0) or 0),
+            })
+
+    return active
+
+
+def _build_idle_promql(namespace: str, statefulset_name: str) -> str:
+    return (
+        "sum(rate(container_network_transmit_bytes_total"
+        f'{{namespace="{namespace}", pod=~"^{statefulset_name}-.*"}}[10m])) '
+        "by (pod) < 50"
+    )
+
+
+def _build_prometheus_raw_path(query: str) -> str:
+    encoded_query = urllib.parse.quote(query, safe="")
+    return (
+        f"/api/v1/namespaces/{PROMETHEUS_NAMESPACE}/services/"
+        f"{PROMETHEUS_SERVICE}:9090/proxy/api/v1/query?query={encoded_query}"
+    )
+
+
+def is_statefulset_idle(namespace: str, statefulset_name: str) -> bool:
+    """Comprueba inactividad (tráfico saliente < 50 B/s en 10 minutos) vía Prometheus."""
+    promql = _build_idle_promql(namespace, statefulset_name)
+    raw_path = _build_prometheus_raw_path(promql)
+
+    cmd = ["kubectl", "get", "--raw", raw_path]
+    result = _run(cmd, check=False, timeout=60)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise RuntimeError(
+            f"No se pudo consultar Prometheus para {namespace}/{statefulset_name}."
+        )
+
+    parsed = json.loads(result.stdout)
+    if parsed.get("status") != "success":
+        raise RuntimeError(
+            f"Respuesta inválida de Prometheus para {namespace}/{statefulset_name}."
+        )
+
+    prom_results = parsed.get("data", {}).get("result", [])
+    return len(prom_results) > 0
+
+
+def scale_statefulset(statefulset_name: str, namespace: str, replicas: int) -> None:
+    """Escala un StatefulSet al número de réplicas indicado."""
+    cmd = [
+        "kubectl",
+        "scale",
+        "statefulset",
+        statefulset_name,
+        f"--replicas={replicas}",
+        "-n",
+        namespace,
+    ]
+    _run(cmd)
+
+
+def wake_release(release_name: str, namespace: str, timeout_seconds: int = 90) -> None:
+    """Despierta una release escalando a 1 todos sus StatefulSets y esperando rollout."""
+    releases = _list_helm_releases(namespace=namespace)
+    release = next(
+        (
+            rel for rel in releases
+            if rel.get("name") == release_name and rel.get("namespace", "default") == namespace
+        ),
+        None,
+    )
+    if release is None:
+        raise RuntimeError(f"No se encontró la release '{release_name}' en namespace '{namespace}'.")
+
+    db_type = _resolve_db_type_from_chart(release.get("chart", ""))
+    if db_type is None:
+        raise RuntimeError(
+            f"La release '{release_name}' no corresponde a un chart gestionado por la aplicación."
+        )
+
+    items = _get_statefulsets_for_release(release_name, namespace)
+    if not items:
+        raise RuntimeError(
+            f"No se encontraron StatefulSets para la release '{release_name}' en namespace '{namespace}'."
+        )
+
+    statefulset_names: list[str] = []
+    for item in items:
+        statefulset_name = item.get("metadata", {}).get("name", "")
+        if not statefulset_name:
+            continue
+
+        statefulset_names.append(statefulset_name)
+        scale_statefulset(statefulset_name, namespace, replicas=1)
+
+    if not statefulset_names:
+        raise RuntimeError(
+            f"No se pudieron resolver StatefulSets válidos para la release '{release_name}'."
+        )
+
+    for statefulset_name in statefulset_names:
+        rollout_cmd = [
+            "kubectl",
+            "rollout",
+            "status",
+            f"statefulset/{statefulset_name}",
+            "-n",
+            namespace,
+            f"--timeout={timeout_seconds}s",
+        ]
+        try:
+            _run(rollout_cmd, timeout=timeout_seconds + 20)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"Timeout al esperar el arranque de {statefulset_name} en namespace {namespace}."
+            ) from exc
 
 def helm_deploy(
     release_name: str,
@@ -483,71 +694,45 @@ def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
     tcp_data = _get_tcp_configmap()
 
     # 1. Listar releases de Helm
-    cmd = ["helm", "list", "--output", "json"]
-    if namespace:
-        cmd += ["--namespace", namespace]
-    else:
-        cmd += ["--all-namespaces"]
-
-    result = _run(cmd, check=False)
-    if result.returncode != 0 or not result.stdout.strip():
-        return []
-
-    releases = json.loads(result.stdout)
+    releases = _list_helm_releases(namespace=namespace)
     deployments: list[dict[str, Any]] = []
 
     for rel in releases:
         release_name = rel.get("name", "")
         rel_namespace = rel.get("namespace", "default")
         chart = rel.get("chart", "")
-        status = rel.get("status", "unknown")
+        helm_status = rel.get("status", "unknown")
         updated = rel.get("updated", "")
 
         # Detectar tipo de DB según el chart
-        db_type_str = ""
-        if "mysql" in chart.lower():
-            db_type_str = "mysql"
-        elif "mongo" in chart.lower():
-            db_type_str = "mongo"
-        else:
+        db_type = _resolve_db_type_from_chart(chart)
+        if db_type is None:
             continue  # No es un despliegue gestionado por esta app
+        db_type_str = db_type.value
 
         # 2. Obtener StatefulSets asociados
-        #    Intentamos primero por label estándar; si no hay resultados,
-        #    buscamos por prefijo de nombre (charts sin labels Helm).
-        sts_cmd = [
-            "kubectl", "get", "statefulsets",
-            "-n", rel_namespace,
-            "-l", f"app.kubernetes.io/instance={release_name}",
-            "-o", "json",
-        ]
-        sts_result = _run(sts_cmd, check=False)
-        items: list[dict[str, Any]] = []
-        if sts_result.returncode == 0 and sts_result.stdout.strip():
-            sts_data = json.loads(sts_result.stdout)
-            items = sts_data.get("items", [])
-
-        # Fallback: si no se encontraron por label, buscar por prefijo de nombre
-        if not items:
-            sts_all_cmd = [
-                "kubectl", "get", "statefulsets",
-                "-n", rel_namespace,
-                "-o", "json",
-            ]
-            sts_all_result = _run(sts_all_cmd, check=False)
-            if sts_all_result.returncode == 0 and sts_all_result.stdout.strip():
-                all_data = json.loads(sts_all_result.stdout)
-                items = [
-                    item for item in all_data.get("items", [])
-                    if item.get("metadata", {}).get("name", "").startswith(f"{release_name}-")
-                ]
+        items = _get_statefulsets_for_release(release_name, rel_namespace)
 
         sts_count = len(items)
         ready_count = 0
+        desired_count = 0
         for item in items:
+            sts_spec = item.get("spec", {})
             sts_status = item.get("status", {})
+            desired = sts_spec.get("replicas", 0)
             ready = sts_status.get("readyReplicas", 0)
+            desired_count += int(desired or 0)
             ready_count += ready
+
+        if items:
+            if desired_count == 0:
+                status = "hibernating"
+            elif desired_count == ready_count:
+                status = "active"
+            else:
+                status = "starting"
+        else:
+            status = helm_status
 
         # 3. Obtener mapeos de puertos para esta release
         port_mappings = _get_port_mappings_for_release(

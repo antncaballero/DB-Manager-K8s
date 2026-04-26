@@ -212,7 +212,7 @@ resource "aws_eks_node_group" "main" {
 # ═══════════════════════════════════════════════════════════════════════════════
 #  6. EBS CSI DRIVER – Para que los PersistentVolumeClaims funcionen
 # ═══════════════════════════════════════════════════════════════════════════════
-# En Minikube, los PVC usan el StorageClass "standard" (hostPath).
+# En k3d, los PVC usan el StorageClass "local-path".
 # En AWS, necesitan EBS (Elastic Block Store) = discos virtuales.
 # El EBS CSI Driver conecta Kubernetes con EBS para crear/montar discos.
 #

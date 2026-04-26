@@ -6,6 +6,7 @@ import type {
   DestroyRequest,
   DestroyResponse,
   ListDeploymentsResponse,
+  WakeDeploymentResponse,
 } from "@/types";
 
 /**
@@ -68,4 +69,15 @@ export function destroyDatabase(body: DestroyRequest) {
 
 export function healthCheck() {
   return request<{ status: string }>("/health");
+}
+
+export function wakeDeployment(releaseName: string, namespace: string) {
+  const releaseEncoded = encodeURIComponent(releaseName);
+  const namespaceEncoded = encodeURIComponent(namespace);
+  return request<WakeDeploymentResponse>(
+    `/deployments/${releaseEncoded}/wake?namespace=${namespaceEncoded}`,
+    {
+      method: "POST",
+    },
+  );
 }

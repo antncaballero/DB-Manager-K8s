@@ -8,18 +8,14 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Credenciales de Kubernetes – "mando a distancia"
-      - ~/.kube/config:/root/.kube/config:ro
-      # Certificados de Minikube (montados en la MISMA ruta que referencia el kubeconfig)
-      - ~/.minikube:${HOME}/.minikube:ro
-      # Charts de Helm (montados en la ruta que espera k8s_manager.py)
+      # Credenciales de Kubernetes
+      - ~/.kube/config-backend:/root/.kube/config:ro
+      # Charts de Helm
       - ../charts:/charts:ro
     environment:
       - KUBECONFIG=/root/.kube/config
-    # Conectar a la red de Minikube para alcanzar 192.168.49.2:8443
     networks:
-      - default
-      - minikube
+      - k3d-network
     restart: unless-stopped
 
   # ── Frontend (React + Vite → Nginx) ────────────────────────────────────────
@@ -32,12 +28,13 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    networks:
+      - k3d-network
     restart: unless-stopped
 
-# ── Red externa de Minikube ──────────────────────────────────────────────────
+# ── Red de k3d ───────────────────────────────────────────────────────────────
 networks:
-  default:
-    driver: bridge
-  minikube:
+  k3d-network:
     external: true
-    name: minikube
+    # k3d crea la red siguiendo el patrón: k3d-<nombre-del-cluster>
+    name: k3d-tfg-cluster

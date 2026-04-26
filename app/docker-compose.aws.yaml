@@ -1,22 +1,3 @@
-# ╔═══════════════════════════════════════════════════════════════════════════════╗
-# ║  docker-compose.aws.yaml – Compose COMPLETO para despliegues en AWS/EKS    ║
-# ║                                                                             ║
-# ║  Este archivo es INDEPENDIENTE del docker-compose.yaml de local.            ║
-# ║  Se usa así:                                                                ║
-# ║                                                                             ║
-# ║    cd app/                                                                  ║
-# ║    docker compose -f docker-compose.aws.yaml up -d --build                 ║
-# ║                                                                             ║
-# ║  Diferencias con el modo local (Minikube):                                  ║
-# ║    - NO monta ~/.minikube (no existe en AWS)                                ║
-# ║    - NO usa la red externa de Minikube                                      ║
-# ║    - El kubeconfig apunta al cluster EKS (configurado con setup-eks.sh)     ║
-# ║    - Monta las credenciales AWS para autenticarse contra EKS               ║
-# ║                                                                             ║
-# ║  El frontend y el backend son IDÉNTICOS → mismas imágenes Docker.          ║
-# ║  La app es completamente agnóstica al entorno (local vs cloud).            ║
-# ╚═══════════════════════════════════════════════════════════════════════════════╝
-
 services:
   # ── Backend (API REST + herramientas K8s) ──────────────────────────────────
   backend:

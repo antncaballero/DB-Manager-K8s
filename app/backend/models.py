@@ -126,3 +126,10 @@ class DeploymentInfo(BaseModel):
 class ListDeploymentsResponse(BaseModel):
     """Respuesta de GET /deployments."""
     deployments: list[DeploymentInfo]
+
+
+class WakeDeploymentResponse(BaseModel):
+    """Respuesta exitosa de POST /deployments/{release_name}/wake."""
+    message: str
+    release_name: str
+    namespace: str

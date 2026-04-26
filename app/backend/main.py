@@ -9,9 +9,11 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
@@ -22,6 +24,7 @@ from models import (
     DestroyResponse,
     ListDeploymentsResponse,
     PortMapping,
+    WakeDeploymentResponse,
 )
 import k8s_manager
 
@@ -50,6 +53,67 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+async def hibernation_worker() -> None:
+    """Bucle de hibernación automática para StatefulSets inactivos."""
+    while True:
+        try:
+            active_statefulsets = k8s_manager.list_active_statefulsets()
+            for statefulset in active_statefulsets:
+                statefulset_name = statefulset.get("name", "")
+                statefulset_namespace = statefulset.get("namespace", "default")
+                if not statefulset_name:
+                    continue
+
+                try:
+                    is_idle = k8s_manager.is_statefulset_idle(
+                        namespace=statefulset_namespace,
+                        statefulset_name=statefulset_name,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "No se pudo evaluar inactividad de %s/%s: %s",
+                        statefulset_namespace,
+                        statefulset_name,
+                        exc,
+                    )
+                    continue
+
+                if is_idle:
+                    logger.info(
+                        "Hibernando StatefulSet por inactividad: %s/%s",
+                        statefulset_namespace,
+                        statefulset_name,
+                    )
+                    k8s_manager.scale_statefulset(
+                        statefulset_name,
+                        statefulset_namespace,
+                        replicas=0,
+                    )
+        except asyncio.CancelledError:
+            logger.info("Hibernation worker detenido.")
+            break
+        except Exception:
+            logger.exception("Error inesperado en hibernation worker.")
+
+        await asyncio.sleep(600)
+        # await asyncio.sleep(120)  # Para pruebas, hibernar cada 2 minutos
+
+
+@app.on_event("startup")
+async def startup_hibernation_worker() -> None:
+    app.state.hibernation_task = asyncio.create_task(hibernation_worker())
+    logger.info("Hibernation worker iniciado.")
+
+
+@app.on_event("shutdown")
+async def shutdown_hibernation_worker() -> None:
+    task = getattr(app.state, "hibernation_task", None)
+    if task:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -159,4 +223,35 @@ def destroy(req: DestroyRequest) -> DestroyResponse:
     return DestroyResponse(
         message=f"Clase '{req.class_name}' eliminada correctamente.",
         release_name=req.class_name,
+    )
+
+
+@app.post("/deployments/{release_name}/wake", response_model=WakeDeploymentResponse)
+def wake_deployment(
+    release_name: str,
+    namespace: str = Query(default="default"),
+) -> WakeDeploymentResponse:
+    """Despierta un despliegue hibernado escalando a 1 todos sus StatefulSets."""
+    logger.info("POST /deployments/%s/wake – namespace=%s", release_name, namespace)
+
+    try:
+        k8s_manager.wake_release(
+            release_name=release_name,
+            namespace=namespace,
+            timeout_seconds=90,
+        )
+    except RuntimeError as exc:
+        logger.error("Error durante el wake de %s/%s: %s", namespace, release_name, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Error inesperado durante wake de %s/%s.", namespace, release_name)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado en wake: {exc}",
+        ) from exc
+
+    return WakeDeploymentResponse(
+        message=f"Entorno '{release_name}' despertado correctamente.",
+        release_name=release_name,
+        namespace=namespace,
     )

@@ -7,19 +7,24 @@ import DatabaseCard from "@/components/databases/DatabaseCard";
 import DestroyDialog from "@/components/databases/DestroyDialog";
 import { useDatabases } from "@/hooks/useDatabases";
 import { useDestroyDatabase } from "@/hooks/useDestroyDatabase";
+import { useWakeDatabase } from "@/hooks/useWakeDatabase";
 import type { DeploymentInfo } from "@/types";
 
 export default function DashboardPage() {
   const { deployments, loading, error, refresh } = useDatabases();
   const { destroy, loading: destroyLoading } = useDestroyDatabase();
+  const { wake, loading: wakeLoading } = useWakeDatabase();
 
   const [target, setTarget] = useState<DeploymentInfo | null>(null);
   const [destroyingRelease, setDestroyingRelease] = useState<string | null>(null);
+  const [wakingRelease, setWakingRelease] = useState<string | null>(null);
+
+  const deploymentKey = (d: DeploymentInfo) => `${d.namespace}/${d.release_name}`;
 
   async function handleConfirmDestroy() {
     if (!target) return;
 
-    setDestroyingRelease(target.release_name);
+    setDestroyingRelease(deploymentKey(target));
     try {
       const result = await destroy({
         class_name: target.release_name,
@@ -32,6 +37,20 @@ export default function DashboardPage() {
       toast.error(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setDestroyingRelease(null);
+    }
+  }
+
+  async function handleWake(deployment: DeploymentInfo) {
+    const key = deploymentKey(deployment);
+    setWakingRelease(key);
+    try {
+      const result = await wake(deployment.release_name, deployment.namespace);
+      toast.success(result.message);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al despertar entorno");
+    } finally {
+      setWakingRelease(null);
     }
   }
 
@@ -69,10 +88,12 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {deployments.map((d) => (
           <DatabaseCard
-            key={d.release_name}
+            key={deploymentKey(d)}
             deployment={d}
             onDestroy={() => setTarget(d)}
-            destroying={destroyingRelease === d.release_name}
+            onWake={handleWake}
+            destroying={destroyingRelease === deploymentKey(d)}
+            waking={wakeLoading && wakingRelease === deploymentKey(d)}
           />
         ))}
       </div>

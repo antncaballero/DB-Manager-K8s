@@ -11,18 +11,29 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { DeploymentInfo } from "@/types";
-import { ChevronDown, ChevronUp, Globe, ServerCrash, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Globe, Loader2, ServerCrash, Trash2 } from "lucide-react";
 
 interface Props {
   deployment: DeploymentInfo;
   onDestroy: (d: DeploymentInfo) => void;
+  onWake: (d: DeploymentInfo) => void;
   destroying: boolean;
+  waking: boolean;
 }
 
 function statusVariant(status: string) {
-  if (status === "deployed") return "default" as const;
+  if (status === "active" || status === "deployed") return "default" as const;
+  if (status === "hibernating") return "secondary" as const;
   if (status === "failed") return "destructive" as const;
   return "secondary" as const;
+}
+
+function statusLabel(status: string) {
+  if (status === "active") return "Activo";
+  if (status === "starting") return "Iniciando";
+  if (status === "hibernating") return "Hibernando";
+  if (status === "deployed") return "Activo";
+  return status;
 }
 
 function dbLabel(dbType: string) {
@@ -31,8 +42,9 @@ function dbLabel(dbType: string) {
   return dbType;
 }
 
-export default function DatabaseCard({ deployment, onDestroy, destroying }: Props) {
+export default function DatabaseCard({ deployment, onDestroy, onWake, destroying, waking }: Props) {
   const [showConnections, setShowConnections] = useState(false);
+  const isHibernating = deployment.status === "hibernating";
 
   const updatedShort = deployment.updated
     ? new Date(deployment.updated).toLocaleString("es-ES", {
@@ -65,8 +77,11 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
               Namespace: <span className="font-medium">{deployment.namespace}</span>
             </CardDescription>
           </div>
-          <Badge variant={statusVariant(deployment.status)}>
-            {deployment.status}
+          <Badge
+            variant={statusVariant(deployment.status)}
+            className={isHibernating ? "bg-yellow-500/15 text-yellow-700" : undefined}
+          >
+            {statusLabel(deployment.status)}
           </Badge>
         </div>
       </CardHeader>
@@ -94,7 +109,7 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
         </div>
 
         {/* ── Información de conexión ───────────────────────────────── */}
-        {hasConnections && (
+        {hasConnections && !isHibernating && (
           <>
             <Separator className="my-2" />
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -147,6 +162,24 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
                 ))}
               </div>
             )}
+          </>
+        )}
+
+        {isHibernating && (
+          <>
+            <Separator className="my-2" />
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full"
+              disabled={waking}
+              onClick={() => onWake(deployment)}
+            >
+              {waking ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : null}
+              {waking ? "Despertando…" : "Despertar entorno"}
+            </Button>
           </>
         )}
       </CardContent>

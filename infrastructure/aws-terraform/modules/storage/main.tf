@@ -1,7 +1,7 @@
 # ╔═════════════════════════════════════════════════════════════════════════════╗
 # ║  modules/storage/main.tf – StorageClass para volúmenes persistentes         ║
 # ║                                                                             ║
-# ║  En Minikube, los PVC usan StorageClass "standard" (almacenamiento local).  ║
+# ║  En k3d, los PVC usan StorageClass "local-path" (almacenamiento local).     ║
 # ║  En AWS/EKS, necesitamos una StorageClass que use EBS (discos virtuales).   ║
 # ║                                                                             ║
 # ║  Creamos una StorageClass "gp3" (la más moderna y eficiente de AWS) y la    ║
