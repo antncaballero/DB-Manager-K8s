@@ -100,6 +100,8 @@ cd infrastructure/local
 
 Este script crea el cluster `tfg-cluster`, instala ingress/monitoring y genera `~/.kube/config-backend` para el contenedor backend.
 
+También instala KEDA para habilitar la hibernación automática por inactividad.
+
 ### 2) Levantar frontend + backend
 
 ```bash
@@ -130,7 +132,7 @@ Rangos de puertos TCP usados por tipo de base de datos:
 
 Nota: Redis se despliega con persistencia en volumen y AOF habilitado para conservar datos al hibernar/despertar.
 
-Además, automáticamente, el sistema hiberna instancias de bases de datos inactivas (sin tráfico) cada 10 minutos.
+Además, automáticamente, KEDA hiberna instancias de bases de datos inactivas (sin tráfico) con `cooldownPeriod` de 10 minutos y sondeo de Prometheus cada 30 segundos.
 
 ## Destrucción y limpieza
 

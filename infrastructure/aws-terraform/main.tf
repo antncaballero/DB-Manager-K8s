@@ -120,3 +120,21 @@ module "monitoring" {
 
   depends_on = [module.storage, module.cluster_autoscaler]
 }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  7. KEDA – Escalado a cero por inactividad (hibernación)
+# ═══════════════════════════════════════════════════════════════════════════════
+module "keda" {
+  source = "./modules/keda"
+
+  namespace     = var.keda_namespace
+  release_name  = var.keda_release_name
+  repository    = var.keda_repository
+  chart         = var.keda_chart
+  chart_version = var.keda_chart_version
+  wait          = var.keda_wait
+  timeout       = var.keda_timeout
+
+  depends_on = [module.monitoring]
+}

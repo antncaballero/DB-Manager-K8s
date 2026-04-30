@@ -83,3 +83,18 @@ output "cluster_autoscaler_release_status" {
   description = "Estado del release Helm de Cluster Autoscaler."
   value       = module.cluster_autoscaler.release_status
 }
+
+output "keda_namespace" {
+  description = "Namespace donde está desplegado KEDA."
+  value       = module.keda.namespace
+}
+
+output "keda_release_name" {
+  description = "Nombre del release Helm de KEDA."
+  value       = module.keda.release_name
+}
+
+output "keda_release_status" {
+  description = "Estado del release Helm de KEDA."
+  value       = module.keda.release_status
+}

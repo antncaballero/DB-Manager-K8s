@@ -284,3 +284,49 @@ variable "monitoring_grafana_service_type" {
   type        = string
   default     = "ClusterIP"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KEDA (HIBERNACIÓN POR ESCALADO A CERO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+variable "keda_namespace" {
+  description = "Namespace donde se desplegará KEDA."
+  type        = string
+  default     = "keda"
+}
+
+variable "keda_release_name" {
+  description = "Nombre del release Helm de KEDA."
+  type        = string
+  default     = "keda"
+}
+
+variable "keda_repository" {
+  description = "Repositorio Helm de KEDA."
+  type        = string
+  default     = "https://kedacore.github.io/charts"
+}
+
+variable "keda_chart" {
+  description = "Nombre del chart Helm de KEDA."
+  type        = string
+  default     = "keda"
+}
+
+variable "keda_chart_version" {
+  description = "Versión del chart Helm de KEDA."
+  type        = string
+  default     = "2.16.1"
+}
+
+variable "keda_wait" {
+  description = "Si Terraform debe esperar a que KEDA esté listo."
+  type        = bool
+  default     = true
+}
+
+variable "keda_timeout" {
+  description = "Timeout (segundos) para instalar KEDA."
+  type        = number
+  default     = 900
+}

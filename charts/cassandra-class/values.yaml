@@ -25,5 +25,17 @@ jvm:
   maxHeapSize: "512M"
   heapNewSize: "128M"
 
+keda:
+  enabled: true
+  pollingInterval: 30
+  cooldownPeriod: 600
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  threshold: "60"
+  activationThreshold: "60"
+  metricName: "network_traffic_bytes"
+  queryWindow: "1m"
+  serverAddress: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+
 # Python rellenará esto
 instances: []

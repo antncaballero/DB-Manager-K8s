@@ -1,0 +1,31 @@
+{{- if .Values.keda.enabled }}
+{{- $root := . }}
+{{- range .Values.instances }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .name }}-hibernation
+  labels:
+    app: {{ .name }}
+    app.kubernetes.io/instance: {{ $root.Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ .name }}
+  pollingInterval: {{ $root.Values.keda.pollingInterval }}
+  cooldownPeriod: {{ $root.Values.keda.cooldownPeriod }}
+  minReplicaCount: {{ $root.Values.keda.minReplicaCount }}
+  maxReplicaCount: {{ $root.Values.keda.maxReplicaCount }}
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: {{ $root.Values.keda.serverAddress | quote }}
+        metricName: {{ printf "%s-%s" .name $root.Values.keda.metricName | quote }}
+        query: {{ printf "sum(rate(container_network_transmit_bytes_total{namespace=\"%s\", pod=~\"^%s-.*\"}[%s])) by (pod)" $root.Release.Namespace .name $root.Values.keda.queryWindow | quote }}
+        threshold: {{ $root.Values.keda.threshold | quote }}
+        activationThreshold: {{ $root.Values.keda.activationThreshold | quote }}
+{{- end }}
+{{- end }}

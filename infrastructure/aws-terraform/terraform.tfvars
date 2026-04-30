@@ -19,7 +19,7 @@ eks_cluster_version     = "1.31"
 eks_node_instance_types = ["t3.small"] # 2 vCPU, 2 GB RAM – lo mínimo para un cluster EKS funcional
 eks_node_desired        = 3  # 3 nodos para tener holgura (sistema consume ~600 MB por nodo)
 eks_node_min            = 1
-eks_node_max            = 5
+eks_node_max            = 7
 eks_node_disk_size      = 20 # Mínimo requerido por la AMI AL2023
 
 # ── Puertos TCP (deben coincidir con models.py del backend) ──────────────────
@@ -31,3 +31,12 @@ redis_port_range_start = 6379
 redis_port_range_end   = 6404
 cassandra_port_range_start = 9042
 cassandra_port_range_end   = 9067
+
+# ── KEDA (hibernación por escalado a cero) ─────────────────────────────────
+keda_namespace    = "keda"
+keda_release_name = "keda"
+keda_repository   = "https://kedacore.github.io/charts"
+keda_chart        = "keda"
+keda_chart_version = "2.16.1"
+keda_wait         = true
+keda_timeout      = 600

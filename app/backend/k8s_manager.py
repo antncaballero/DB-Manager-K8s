@@ -203,44 +203,6 @@ def list_active_statefulsets(namespace: str | None = None) -> list[dict[str, Any
     return active
 
 
-def _build_idle_promql(namespace: str, statefulset_name: str) -> str:
-    return (
-        "sum(rate(container_network_transmit_bytes_total"
-        f'{{namespace="{namespace}", pod=~"^{statefulset_name}-.*"}}[10m])) '
-        "by (pod) < 50"
-    )
-
-
-def _build_prometheus_raw_path(query: str) -> str:
-    encoded_query = urllib.parse.quote(query, safe="")
-    return (
-        f"/api/v1/namespaces/{PROMETHEUS_NAMESPACE}/services/"
-        f"{PROMETHEUS_SERVICE}:9090/proxy/api/v1/query?query={encoded_query}"
-    )
-
-
-def is_statefulset_idle(namespace: str, statefulset_name: str) -> bool:
-    """Comprueba inactividad (tráfico saliente < 50 B/s en 10 minutos) vía Prometheus."""
-    promql = _build_idle_promql(namespace, statefulset_name)
-    raw_path = _build_prometheus_raw_path(promql)
-
-    cmd = ["kubectl", "get", "--raw", raw_path]
-    result = _run(cmd, check=False, timeout=60)
-    if result.returncode != 0 or not result.stdout.strip():
-        raise RuntimeError(
-            f"No se pudo consultar Prometheus para {namespace}/{statefulset_name}."
-        )
-
-    parsed = json.loads(result.stdout)
-    if parsed.get("status") != "success":
-        raise RuntimeError(
-            f"Respuesta inválida de Prometheus para {namespace}/{statefulset_name}."
-        )
-
-    prom_results = parsed.get("data", {}).get("result", [])
-    return len(prom_results) > 0
-
-
 def scale_statefulset(statefulset_name: str, namespace: str, replicas: int) -> None:
     """Escala un StatefulSet al número de réplicas indicado."""
     cmd = [

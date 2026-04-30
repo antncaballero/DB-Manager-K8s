@@ -116,15 +116,15 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
               <Globe className="h-3.5 w-3.5" />
               Conexión
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">IP externa</span>
-              <span className="font-mono text-xs font-medium">
+              <span className="font-mono text-xs font-medium break-all">
                 {deployment.external_ip}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Puertos</span>
-              <span className="font-mono text-xs font-medium">
+              <span className="font-mono text-xs font-medium break-all">
                 {portRange}
               </span>
             </div>

@@ -41,6 +41,11 @@ helm upgrade --install kube-prometheus-stack kube-prometheus-stack \
   --set grafana.persistence.enabled=false \
   --set grafana.service.type=ClusterIP
 
+echo "---- Instalando KEDA..."
+helm upgrade --install keda keda \
+  --repo https://kedacore.github.io/charts \
+  --namespace keda --create-namespace
+
 # 1. Crear una copia específica para el contenedor del backend
 cp ~/.kube/config ~/.kube/config-backend
 
