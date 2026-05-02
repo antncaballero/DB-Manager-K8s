@@ -39,9 +39,9 @@ variable "chart_version" {
 }
 
 variable "kubernetes_version" {
-  description = "Versión menor de Kubernetes (ej: 1.31) para fijar la imagen compatible de Cluster Autoscaler."
+  description = "Versión menor de Kubernetes (ej: 1.35) para fijar la imagen compatible de Cluster Autoscaler."
   type        = string
-  default     = "1.31"
+  default     = "1.35"
 }
 
 variable "wait" {

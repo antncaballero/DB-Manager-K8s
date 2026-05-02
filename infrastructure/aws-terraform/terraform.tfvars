@@ -15,7 +15,7 @@ vpc_cidr                 = "10.0.0.0/16"
 availability_zones_count = 2
 
 # ── EKS ──────────────────────────────────────────────────────────────────────
-eks_cluster_version     = "1.31"
+eks_cluster_version     = "1.35"
 eks_node_instance_types = ["t3.small"] # 2 vCPU, 2 GB RAM – lo mínimo para un cluster EKS funcional
 eks_node_desired        = 3  # 3 nodos para tener holgura (sistema consume ~600 MB por nodo)
 eks_node_min            = 1

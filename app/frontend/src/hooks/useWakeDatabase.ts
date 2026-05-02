@@ -14,7 +14,7 @@ export function useWakeDatabase() {
       setLoading(true);
       setError(null);
       try {
-        const result = await wakeDeployment(releaseName, namespace);
+        const result = await wakeDeployment(namespace, releaseName);
         return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error desconocido";

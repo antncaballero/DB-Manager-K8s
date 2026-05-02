@@ -15,7 +15,7 @@ export function useWakeStatefulset() {
       setLoading(true);
       setError(null);
       try {
-        const result = await wakeStatefulset(releaseName, statefulsetName, namespace);
+        const result = await wakeStatefulset(namespace, releaseName, statefulsetName);
         return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error desconocido";

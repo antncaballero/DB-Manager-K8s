@@ -29,7 +29,7 @@ from models import (
     WakeDeploymentResponse,
     WakeStatefulSetResponse,
 )
-import k8s_manager
+import k8s as k8s_manager
 
 # ── Logger ────────────────────────────────────────────────────────────────────
 logger = logging.getLogger("main")
@@ -86,7 +86,7 @@ def list_deployments(namespace: str | None = None) -> ListDeploymentsResponse:
     return ListDeploymentsResponse(deployments=deployments)
 
 
-@app.post("/deploy", response_model=DeployResponse)
+@app.post("/deployments", response_model=DeployResponse)
 def deploy(req: DeployRequest) -> DeployResponse:
     """Despliega un cluster de bases de datos para una clase.
 
@@ -134,8 +134,8 @@ def deploy(req: DeployRequest) -> DeployResponse:
     )
 
 
-@app.delete("/destroy", response_model=DestroyResponse)
-def destroy(req: DestroyRequest) -> DestroyResponse:
+@app.delete("/deployments/{namespace}/{release_name}", response_model=DestroyResponse)
+def destroy(namespace: str, release_name: str) -> DestroyResponse:
     """Elimina un cluster de bases de datos y limpia la configuración de red.
 
     Flujo:
@@ -143,14 +143,14 @@ def destroy(req: DestroyRequest) -> DestroyResponse:
       2. Elimina las entradas del ConfigMap `tcp-services`.
     """
     logger.info(
-        "DELETE /destroy – class_name=%s, namespace=%s",
-        req.class_name, req.namespace,
+        "DELETE /deployments/%s/%s",
+        namespace, release_name,
     )
 
     try:
         k8s_manager.destroy_class(
-            class_name=req.class_name,
-            namespace=req.namespace,
+            class_name=release_name,
+            namespace=namespace,
         )
     except RuntimeError as exc:
         logger.error("Error durante la destrucción: %s", exc)
@@ -163,15 +163,15 @@ def destroy(req: DestroyRequest) -> DestroyResponse:
         ) from exc
 
     return DestroyResponse(
-        message=f"Clase '{req.class_name}' eliminada correctamente.",
-        release_name=req.class_name,
+        message=f"Clase \'{release_name}\' eliminada correctamente.",
+        release_name=release_name,
     )
 
 
-@app.post("/deployments/{release_name}/wake", response_model=WakeDeploymentResponse)
+@app.patch("/deployments/{namespace}/{release_name}", response_model=WakeDeploymentResponse)
 def wake_deployment(
+    namespace: str,
     release_name: str,
-    namespace: str = Query(default="default"),
 ) -> WakeDeploymentResponse:
     """Despierta un despliegue hibernado escalando a 1 todos sus StatefulSets."""
     logger.info("POST /deployments/%s/wake – namespace=%s", release_name, namespace)
@@ -199,7 +199,7 @@ def wake_deployment(
     )
 
 
-@app.get("/wake/releases", response_model=ListWakeReleasesResponse)
+@app.get("/deployments/hibernated", response_model=ListWakeReleasesResponse)
 def list_wake_releases(namespace: str | None = None) -> ListWakeReleasesResponse:
     """Lista releases disponibles para wakeup granular."""
     logger.info("GET /wake/releases – namespace=%s", namespace)
@@ -218,12 +218,12 @@ def list_wake_releases(namespace: str | None = None) -> ListWakeReleasesResponse
 
 
 @app.get(
-    "/wake/releases/{release_name}/statefulsets",
+    "/deployments/{namespace}/{release_name}/statefulsets",
     response_model=ListReleaseStatefulSetsResponse,
 )
 def list_release_statefulsets(
+    namespace: str,
     release_name: str,
-    namespace: str = Query(default="default"),
 ) -> ListReleaseStatefulSetsResponse:
     """Lista StatefulSets de una release para wakeup individual."""
     logger.info(
@@ -264,14 +264,14 @@ def list_release_statefulsets(
     )
 
 
-@app.post(
-    "/wake/releases/{release_name}/statefulsets/{statefulset_name}",
+@app.patch(
+    "/deployments/{namespace}/{release_name}/statefulsets/{statefulset_name}",
     response_model=WakeStatefulSetResponse,
 )
 def wake_single_statefulset(
+    namespace: str,
     release_name: str,
     statefulset_name: str,
-    namespace: str = Query(default="default"),
 ) -> WakeStatefulSetResponse:
     """Despierta un StatefulSet concreto de una release."""
     logger.info(

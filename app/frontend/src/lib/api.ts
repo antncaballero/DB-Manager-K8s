@@ -3,7 +3,6 @@
 import type {
   DeployRequest,
   DeployResponse,
-  DestroyRequest,
   DestroyResponse,
   ListReleaseStatefulSetsResponse,
   ListDeploymentsResponse,
@@ -57,16 +56,15 @@ export function fetchDeployments(namespace?: string) {
 }
 
 export function deployDatabase(body: DeployRequest) {
-  return request<DeployResponse>("/deploy", {
+  return request<DeployResponse>("/deployments", {
     method: "POST",
     body: JSON.stringify(body),
   });
 }
 
-export function destroyDatabase(body: DestroyRequest) {
-  return request<DestroyResponse>("/destroy", {
+export function destroyDatabase(namespace: string, releaseName: string) {
+  return request<DestroyResponse>(`/deployments/${encodeURIComponent(namespace)}/${encodeURIComponent(releaseName)}`, {
     method: "DELETE",
-    body: JSON.stringify(body),
   });
 }
 
@@ -74,42 +72,42 @@ export function healthCheck() {
   return request<{ status: string }>("/health");
 }
 
-export function wakeDeployment(releaseName: string, namespace: string) {
+export function wakeDeployment(namespace: string, releaseName: string) {
   const releaseEncoded = encodeURIComponent(releaseName);
   const namespaceEncoded = encodeURIComponent(namespace);
   return request<WakeDeploymentResponse>(
-    `/deployments/${releaseEncoded}/wake?namespace=${namespaceEncoded}`,
+    `/deployments/${namespaceEncoded}/${releaseEncoded}`,
     {
-      method: "POST",
-    },
+      method: "PATCH",
+    }
   );
 }
 
 export function fetchWakeReleases(namespace?: string) {
   const qs = namespace ? `?namespace=${encodeURIComponent(namespace)}` : "";
-  return request<ListWakeReleasesResponse>(`/wake/releases${qs}`);
+  return request<ListWakeReleasesResponse>(`/deployments/hibernated${qs}`);
 }
 
-export function fetchReleaseStatefulsets(releaseName: string, namespace: string) {
+export function fetchReleaseStatefulsets(namespace: string, releaseName: string) {
   const releaseEncoded = encodeURIComponent(releaseName);
   const namespaceEncoded = encodeURIComponent(namespace);
   return request<ListReleaseStatefulSetsResponse>(
-    `/wake/releases/${releaseEncoded}/statefulsets?namespace=${namespaceEncoded}`,
+    `/deployments/${namespaceEncoded}/${releaseEncoded}/statefulsets`,
   );
 }
 
 export function wakeStatefulset(
+  namespace: string,
   releaseName: string,
   statefulsetName: string,
-  namespace: string,
 ) {
   const releaseEncoded = encodeURIComponent(releaseName);
   const statefulsetEncoded = encodeURIComponent(statefulsetName);
   const namespaceEncoded = encodeURIComponent(namespace);
   return request<WakeStatefulSetResponse>(
-    `/wake/releases/${releaseEncoded}/statefulsets/${statefulsetEncoded}?namespace=${namespaceEncoded}`,
+    `/deployments/${namespaceEncoded}/${releaseEncoded}/statefulsets/${statefulsetEncoded}`,
     {
-      method: "POST",
+      method: "PATCH",
     },
   );
 }

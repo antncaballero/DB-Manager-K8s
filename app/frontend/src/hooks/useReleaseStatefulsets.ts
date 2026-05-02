@@ -11,7 +11,7 @@ export function useReleaseStatefulsets() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchReleaseStatefulsets(releaseName, namespace);
+      const data = await fetchReleaseStatefulsets(namespace, releaseName);
       setStatefulsets(data.statefulsets);
     } catch (err) {
       setStatefulsets([]);

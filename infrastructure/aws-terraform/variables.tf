@@ -61,7 +61,7 @@ variable "availability_zones_count" {
 variable "eks_cluster_version" {
   description = "Versión de Kubernetes para el cluster EKS. Debe ser una versión soportada por AWS."
   type        = string
-  default     = "1.31"
+  default     = "1.35"
 }
 
 variable "eks_node_instance_types" {

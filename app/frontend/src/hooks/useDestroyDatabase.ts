@@ -13,7 +13,7 @@ export function useDestroyDatabase() {
     setLoading(true);
     setError(null);
     try {
-      const result = await destroyDatabase(req);
+      const result = await destroyDatabase(req.namespace, req.class_name);
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error desconocido";
