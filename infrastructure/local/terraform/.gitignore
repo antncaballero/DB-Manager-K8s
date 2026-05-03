@@ -1,0 +1,17 @@
+# Terraform state y archivos generados
+# No subir el state a git – contiene secretos y datos sensibles
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Variables con secretos
+*.auto.tfvars
+secret.tfvars
+
+# Crash logs de Terraform
+crash.log
+crash.*.log
+
+# Plan files (pueden contener secretos)
+*.tfplan

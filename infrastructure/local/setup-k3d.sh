@@ -17,34 +17,15 @@ k3d cluster create tfg-cluster --k3s-arg "--disable=traefik@server:0" \
   -p "9042-9067:9042-9067@loadbalancer" \
   --agents 1
 
-echo "---- Instalando NGINX Ingress Controller..."
-# k3d viene con Traefik por defecto, pero como tu script usa Nginx, 
-# lo instalamos y k3d se encarga de mapear el puerto.
-helm upgrade --install ingress-nginx ingress-nginx \
-  --repo https://kubernetes.github.io/ingress-nginx \
-  --namespace ingress-nginx --create-namespace \
-  --set controller.service.type=LoadBalancer \
-  --set controller.extraArgs.tcp-services-configmap=ingress-nginx/tcp-services
+echo "---- Inicializando Terraform..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TF_DIR="${SCRIPT_DIR}/terraform"
 
-echo "---- Creando el ConfigMap para los puertos TCP..."
-kubectl create configmap tcp-services -n ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
+tf_cmd=(terraform -chdir="$TF_DIR")
+"${tf_cmd[@]}" init
 
-echo "---- Instalando Prometheus + Grafana..."
-# Cambiamos el service type a ClusterIP o LoadBalancer ya que k3d 
-# gestiona mejor el tráfico mediante Ingress o mapeo de puertos.
-helm upgrade --install kube-prometheus-stack kube-prometheus-stack \
-  --repo https://prometheus-community.github.io/helm-charts \
-  --namespace monitoring --create-namespace \
-  --set alertmanager.enabled=false \
-  --set prometheus.prometheusSpec.retention=6h \
-  --set grafana.adminPassword=admin \
-  --set grafana.persistence.enabled=false \
-  --set grafana.service.type=ClusterIP
-
-echo "---- Instalando KEDA..."
-helm upgrade --install keda keda \
-  --repo https://kedacore.github.io/charts \
-  --namespace keda --create-namespace
+echo "---- Aplicando Terraform..."
+"${tf_cmd[@]}" apply -auto-approve
 
 # 1. Crear una copia específica para el contenedor del backend
 cp ~/.kube/config ~/.kube/config-backend

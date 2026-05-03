@@ -87,7 +87,7 @@ def scale_statefulset(statefulset_name: str, namespace: str, replicas: int) -> N
     ]
     _run(cmd)
 
-def wake_release(release_name: str, namespace: str, timeout_seconds: int = 90) -> None:
+def wake_release(release_name: str, namespace: str, timeout_seconds: int = 180) -> None:
     """Despierta una release escalando a 1 todos sus StatefulSets y esperando rollout."""
     releases = _list_helm_releases(namespace=namespace)
     release = next(
@@ -99,12 +99,6 @@ def wake_release(release_name: str, namespace: str, timeout_seconds: int = 90) -
     )
     if release is None:
         raise RuntimeError(f"No se encontró la release '{release_name}' en namespace '{namespace}'.")
-
-    db_type = _resolve_db_type_from_chart(release.get("chart", ""))
-    if db_type is None:
-        raise RuntimeError(
-            f"La release '{release_name}' no corresponde a un chart gestionado por la aplicación."
-        )
 
     items = _get_statefulsets_for_release(release_name, namespace)
     if not items:

@@ -32,11 +32,12 @@ export default function DeployForm() {
   const [dbType, setDbType] = useState<DBType>("mysql");
   const [className, setClassName] = useState("");
   const [numStudents, setNumStudents] = useState("5");
-  const [namespace, setNamespace] = useState("default");
+  const [namespace, setNamespace] = useState("");
 
   const classNameValid = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(className);
+  const namespaceValid = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(namespace);
   const canSubmit =
-    className.length >= 2 && classNameValid && +numStudents > 0 && +numStudents <= 25;
+    className.length >= 2 && classNameValid && namespaceValid && namespace.length>=2 && +numStudents > 0 && +numStudents <= 25;
 
   const isLikelyGatewayTimeout = (err: unknown) => {
     if (err instanceof ApiHttpError) {
@@ -67,7 +68,7 @@ export default function DeployForm() {
         db_type: dbType,
         class_name: className,
         num_students: Number(numStudents),
-        namespace,
+        namespace ,
       });
 
       toast.success(result.message);
@@ -76,14 +77,18 @@ export default function DeployForm() {
       if (isLikelyGatewayTimeout(err)) {
         toast.warning(
           "El despliegue sigue en progreso en el backend. Ve al Dashboard y actualiza periódicamente; las BBDD aparecerán en breve.",
-          { duration: 10000 }
+          { duration: 7000 }
         );
         navigate("/");
         return;
       }
 
       console.error("Error al desplegar:", err);
-      toast.error("Error al desplegar", { duration: 10000 });
+      const message =
+        err instanceof ApiHttpError
+          ? err.message
+          : "Error al desplegar";
+      toast.error(message, { duration: 10000 });
     }
   }
 
@@ -93,7 +98,7 @@ export default function DeployForm() {
         <CardHeader>
           <CardTitle>Nuevo despliegue</CardTitle>
           <CardDescription>
-            Configura y despliega un cluster de bases de datos para una clase.
+            Configura y despliega un cluster de bases de datos para un laboratorio.
           </CardDescription>
         </CardHeader>
 
@@ -119,7 +124,7 @@ export default function DeployForm() {
 
           {/* Nombre de la clase */}
           <div className="space-y-2">
-            <Label htmlFor="class-name">Nombre de la clase</Label>
+            <Label htmlFor="class-name">Nombre del laboratorio  o clase</Label>
             <Input
               id="class-name"
               placeholder="bd-2025-turno1"
@@ -152,10 +157,16 @@ export default function DeployForm() {
             <Label htmlFor="namespace">Namespace</Label>
             <Input
               id="namespace"
-              placeholder="default"
+              placeholder="default / mysqslab / mongolab"
               value={namespace}
               onChange={(e) => setNamespace(e.target.value)}
             />
+            {namespace.length > 0 && !namespaceValid && (
+              <p className="text-xs text-destructive">
+                Solo minúsculas, números y guiones. Mín. 2 caracteres. Debe empezar y
+                terminar en alfanumérico.
+              </p>
+            )}
           </div>
         </CardContent>
 

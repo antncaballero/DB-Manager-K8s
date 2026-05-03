@@ -36,7 +36,8 @@ def _run(cmd: list[str], *, check: bool = True, timeout: int = 120) -> subproces
     logger.info("Ejecutando: %s", " ".join(cmd))
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.stdout:
-        logger.info("STDOUT:\n%s", result.stdout.strip())
+        #logger.info("STDOUT:\n%s", result.stdout.strip())
+        logger.info("Comando ejecutado con éxito (rc=%d)", result.returncode)
     if result.stderr:
         logger.warning("STDERR:\n%s", result.stderr.strip())
     if check and result.returncode != 0:

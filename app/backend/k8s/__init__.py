@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from .network import (
     get_ingress_external_ip,
     _get_tcp_configmap,
     _get_port_mappings_for_release,
+    check_port_availability
 )
 from .workloads import (
     list_active_statefulsets,
@@ -26,6 +28,8 @@ from .workloads import (
 )
 
 logger = logging.getLogger("k8s")
+
+k8s_network_lock = threading.Lock()
 
 def deploy_class(
     db_type: DBType,
@@ -46,14 +50,19 @@ def deploy_class(
             "Desplegando release '%s' con chart '%s' (%d alumnos)...",
             release_name, chart_path, num_students,
         )
+        check_port_availability(db_type, num_students)
+        
         helm_deploy(release_name, chart_path, values_file, namespace)
 
-        wake_release(release_name, namespace, timeout_seconds=120)
+        wake_release(release_name, namespace, timeout_seconds=300)
 
-        mappings = calculate_port_mappings(db_type, class_name, num_students, namespace)
-        update_tcp_configmap(mappings)
-
-        _sync_ingress_service_ports()
+        with k8s_network_lock:
+            # 1. Calculamos los puertos (asegurándonos de que nadie más los use)
+            mappings = calculate_port_mappings(db_type, class_name, num_students, namespace)
+            # 2. Guardamos en el ConfigMap
+            update_tcp_configmap(mappings)
+            # 3. Sincronizamos el Service para abrir la "puerta" pública
+            _sync_ingress_service_ports()
 
         logger.info("Despliegue de '%s' completado con éxito.", release_name)
         return mappings

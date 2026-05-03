@@ -109,8 +109,11 @@ def deploy(req: DeployRequest) -> DeployResponse:
             namespace=req.namespace,
         )
     except RuntimeError as exc:
-        logger.error("Error durante el despliegue: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        detail = str(exc)
+        logger.error("Error durante el despliegue: %s", detail)
+        if "No hay suficientes puertos" in detail:
+            raise HTTPException(status_code=400, detail=detail) from exc
+        raise HTTPException(status_code=500, detail=detail) from exc
     except Exception as exc:
         logger.exception("Error inesperado durante el despliegue.")
         raise HTTPException(

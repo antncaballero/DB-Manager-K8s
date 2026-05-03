@@ -221,3 +221,19 @@ def _get_port_mappings_for_release(
 
     mappings.sort(key=lambda m: m["external_port"])
     return mappings
+
+def check_port_availability(db_type: DBType, num_students: int) -> None:
+    """Verifica que hay suficientes puertos libres para el despliegue."""
+    config = DB_CONFIG[db_type]
+    port_start: int = config["port_range_start"]
+    port_end: int = config["port_range_end"]
+
+    current_data = _get_tcp_configmap()
+    occupied_ports = {int(p) for p in current_data.keys()}
+
+    available_ports = [p for p in range(port_start, port_end + 1) if p not in occupied_ports]
+    if len(available_ports) < num_students:
+        raise RuntimeError(
+            f"No hay suficientes puertos libres en el rango {port_start}-{port_end} "
+            f"para desplegar {num_students} alumnos. Solo quedan {len(available_ports)} puertos disponibles."
+        )
