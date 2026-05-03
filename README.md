@@ -45,12 +45,12 @@ tfg-db-manager/
 - Docker + Docker Compose
 - kubectl
 - Helm
+- Terraform 
 
 ### Para AWS Academy (flujo principal)
 
 - Cuenta/lab de AWS Academy activo
 - AWS CLI configurado (`aws configure`)
-- Terraform
 
 ### Para local
 
@@ -89,7 +89,13 @@ Accesos:
 - Frontend: `http://localhost:3000`
 - Backend (health): `http://localhost:8000/health`
 
-## Ejecución alternativa local con k3d
+Se podrá acceder al servicio Grafana mediante un port-forward al namespace de monitorización (`monitoring`), por ejemplo:
+
+```bash
+kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3300:80
+```
+
+## Ejecución alternativa local con k3d + Terraform
 
 ### 1) Crear cluster local y preparar entorno
 
@@ -98,7 +104,7 @@ cd infrastructure/local
 ./setup-k3d.sh
 ```
 
-Este script crea el cluster `tfg-cluster`, instala ingress/monitoring y genera `~/.kube/config-backend` para el contenedor backend.
+Este script crea el cluster `tfg-cluster`, aplica Terraform (ingress, monitoring, keda, configmap TCP) y genera `~/.kube/config-backend` para el contenedor backend.
 
 También instala KEDA para habilitar la hibernación automática por inactividad.
 
@@ -113,6 +119,12 @@ Accesos:
 
 - Frontend: `http://localhost:3000`
 - Backend (health): `http://localhost:8000/health`
+
+Se puede acceder a Grafana con port-forward al namespace `monitoring`:
+
+```bash
+kubectl port-forward svc/grafana -n monitoring 3300:80
+```
 
 ## Uso funcional
 
@@ -146,7 +158,7 @@ docker compose -f docker-compose.aws.yaml down
 docker compose -f docker-compose.k3d.yaml down
 ```
 
-### B) Destruir infraestructura AWS (Terraform)
+### B) Destruir infraestructura AWS
 
 Desde `infrastructure/aws-terraform`:
 
@@ -162,5 +174,6 @@ Este script elimina primero releases Helm y después ejecuta `terraform destroy 
 cd app
 docker compose -f docker-compose.k3d.yaml down
 
-k3d cluster delete tfg-cluster
+cd ../infrastructure/local
+./destroy-k3d.sh
 ```
