@@ -32,7 +32,7 @@ from models import (
 import k8s as k8s_manager
 
 # ── Logger ────────────────────────────────────────────────────────────────────
-logger = logging.getLogger("main")
+logger: logging.Logger = logging.getLogger("main")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
