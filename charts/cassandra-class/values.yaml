@@ -4,8 +4,8 @@ image:
   pullPolicy: IfNotPresent
 
 auth:
-  username: "cassandra"
-  password: "cassandra_password"
+  username: "alumno"
+  password: "password"
 
 cluster:
   name: "classroom-cluster"

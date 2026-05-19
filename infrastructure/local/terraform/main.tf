@@ -31,6 +31,7 @@ resource "helm_release" "ingress_nginx" {
   chart            = "ingress-nginx"
   namespace        = kubernetes_namespace.ingress_nginx.metadata[0].name
   create_namespace = false
+  timeout = 900
 
   set {
     name  = "controller.service.type"
@@ -51,6 +52,7 @@ resource "helm_release" "kube_prometheus_stack" {
   chart            = "kube-prometheus-stack"
   namespace        = kubernetes_namespace.monitoring.metadata[0].name
   create_namespace = false
+  timeout = 900
 
   set {
     name  = "alertmanager.enabled"
@@ -86,6 +88,6 @@ resource "helm_release" "keda" {
   chart            = "keda"
   namespace        = kubernetes_namespace.keda.metadata[0].name
   create_namespace = false
-
+  timeout = 900
   depends_on = [kubernetes_namespace.keda]
 }

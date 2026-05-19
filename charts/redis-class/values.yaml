@@ -4,7 +4,7 @@ image:
   pullPolicy: IfNotPresent
 
 auth:
-  password: "redis_password"
+  password: "password"
 
 storage:
   className: "" # Vacío = usa la StorageClass default del cluster (local-path en k3d, gp3 en EKS)

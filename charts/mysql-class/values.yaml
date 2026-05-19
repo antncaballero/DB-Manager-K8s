@@ -6,8 +6,8 @@ image:
 # Credenciales compartidas para toda la clase
 auth:
   username: "alumno"
-  password: "clase_password"
-  rootPassword: "root_password"
+  password: "password"
+  rootPassword: "password"
   database: "practica_db"
 
 storage:

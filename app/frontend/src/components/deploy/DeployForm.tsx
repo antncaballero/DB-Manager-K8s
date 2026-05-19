@@ -157,7 +157,7 @@ export default function DeployForm() {
             <Label htmlFor="namespace">Namespace</Label>
             <Input
               id="namespace"
-              placeholder="default / mysqslab / mongolab"
+              placeholder="mongodb-ns"
               value={namespace}
               onChange={(e) => setNamespace(e.target.value)}
             />

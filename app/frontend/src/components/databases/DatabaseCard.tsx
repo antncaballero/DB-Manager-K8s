@@ -42,8 +42,17 @@ function dbLabel(dbType: string) {
   return dbType;
 }
 
+function dbCredentials(dbType: string) {
+  if (dbType === "mysql") return { username: "alumno", password: "password" };
+  if (dbType === "mongo") return { username: "alumno", password: "password" };
+  if (dbType === "redis") return { username: "default", password: "password" };
+  if (dbType === "cassandra") return { username: "alumno", password: "password" };
+  return { username: "—", password: "—" };
+}
+
 export default function DatabaseCard({ deployment, onDestroy, destroying }: Props) {
   const [showConnections, setShowConnections] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const isHibernating = deployment.status === "hibernating";
 
   const updatedShort = deployment.updated
@@ -64,6 +73,9 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
       ? `${deployment.port_mappings[0].external_port}`
       : `${deployment.port_mappings[0].external_port}–${deployment.port_mappings[deployment.port_mappings.length - 1].external_port}`
     : null;
+
+  const credentials = dbCredentials(deployment.db_type);
+  const passwordDisplay = showPassword ? credentials.password : "********";
 
   return (
     <Card>
@@ -106,6 +118,33 @@ export default function DatabaseCard({ deployment, onDestroy, destroying }: Prop
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Actualizado</span>
           <span className="text-xs">{updatedShort}</span>
+        </div>
+
+        <Separator className="my-2" />
+        <div className="text-xs font-medium text-muted-foreground">
+          Credenciales iniciales
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">Usuario</span>
+          <span className="font-mono text-xs font-medium break-all">
+            {credentials.username}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">Contraseña</span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-medium break-all">
+              {passwordDisplay}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </Button>
+          </div>
         </div>
 
         {/* ── Información de conexión ───────────────────────────────── */}
