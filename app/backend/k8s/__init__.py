@@ -8,7 +8,13 @@ from typing import Any
 from models import DB_CONFIG, DBType
 
 from .utils import build_values_override, write_temp_values
-from .helm import helm_deploy, helm_uninstall, _list_helm_releases, _resolve_db_type_from_chart
+from .helm import (
+    helm_deploy,
+    helm_uninstall,
+    _list_helm_releases,
+    _resolve_db_type_from_chart,
+    find_release_by_name,
+)
 from .network import (
     calculate_port_mappings,
     update_tcp_configmap,
@@ -17,7 +23,7 @@ from .network import (
     get_ingress_external_ip,
     _get_tcp_configmap,
     _get_port_mappings_for_release,
-    check_port_availability
+    check_port_availability,
 )
 from .workloads import (
     list_active_statefulsets,
@@ -30,6 +36,19 @@ from .workloads import (
 logger = logging.getLogger("k8s")
 
 k8s_network_lock = threading.Lock()
+class_name_lock = threading.Lock()
+_inflight_class_names: set[str] = set()
+
+class ClassNameConflictError(RuntimeError):
+    """Error cuando el nombre de clase ya existe en el cluster."""
+
+def _ensure_unique_class_name(class_name: str) -> None:
+    existing = find_release_by_name(class_name)
+    if existing:
+        namespace = existing.get("namespace", "default")
+        raise ClassNameConflictError(
+            f"La clase '{class_name}' ya existe en namespace '{namespace}'."
+        )
 
 def deploy_class(
     db_type: DBType,
@@ -42,10 +61,21 @@ def deploy_class(
     chart_path: str = config["chart_path"]
     release_name = class_name
 
+    inflight_added = False
+    with class_name_lock:
+        if class_name in _inflight_class_names:
+            raise ClassNameConflictError(
+                f"La clase '{class_name}' ya se esta desplegando."
+            )
+        _ensure_unique_class_name(class_name)
+        _inflight_class_names.add(class_name)
+        inflight_added = True
+
     values = build_values_override(class_name, num_students)
-    values_file = write_temp_values(values)
+    values_file: str | None = None
 
     try:
+        values_file = write_temp_values(values)
         logger.info(
             "Desplegando release '%s' con chart '%s' (%d alumnos)...",
             release_name, chart_path, num_students,
@@ -68,8 +98,12 @@ def deploy_class(
         return mappings
 
     finally:
-        Path(values_file).unlink(missing_ok=True)
-        logger.info("Archivo temporal %s eliminado.", values_file)
+        if values_file:
+            Path(values_file).unlink(missing_ok=True)
+            logger.info("Archivo temporal %s eliminado.", values_file)
+        if inflight_added:
+            with class_name_lock:
+                _inflight_class_names.discard(class_name)
 
 def list_deployments(namespace: str | None = None) -> list[dict[str, Any]]:
     """Lista las releases de Helm desplegadas y obtiene info básica de StatefulSets."""
@@ -172,4 +206,5 @@ __all__ = [
     "deploy_class",
     "destroy_class",
     "list_deployments",
+    "ClassNameConflictError",
 ]

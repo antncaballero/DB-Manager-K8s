@@ -28,12 +28,12 @@ spec:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: mongo-root-username
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: mongo-root-password
             - name: MONGO_INITDB_DATABASE
               value: {{ $root.Values.auth.database | quote }}

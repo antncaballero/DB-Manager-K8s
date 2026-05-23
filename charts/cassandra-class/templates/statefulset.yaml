@@ -36,12 +36,12 @@ spec:
             - name: CASSANDRA_USER
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: cassandra-username
             - name: CASSANDRA_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: cassandra-password
           ports:
             - containerPort: 9042

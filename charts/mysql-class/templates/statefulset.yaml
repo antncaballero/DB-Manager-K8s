@@ -28,14 +28,14 @@ spec:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: mysql-root-password
             - name: MYSQL_USER
               value: {{ $root.Values.auth.username | quote }}
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: mysql-password
             - name: MYSQL_DATABASE
               value: {{ $root.Values.auth.database | quote }}

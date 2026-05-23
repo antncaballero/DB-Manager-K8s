@@ -108,6 +108,10 @@ def deploy(req: DeployRequest) -> DeployResponse:
             num_students=req.num_students,
             namespace=req.namespace,
         )
+    except k8s_manager.ClassNameConflictError as exc:
+        detail = str(exc)
+        logger.error("Conflicto de nombre de clase: %s", detail)
+        raise HTTPException(status_code=409, detail=detail) from exc
     except RuntimeError as exc:
         detail = str(exc)
         logger.error("Error durante el despliegue: %s", detail)

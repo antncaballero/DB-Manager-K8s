@@ -40,6 +40,29 @@ def _list_helm_releases(namespace: str | None = None) -> list[dict[str, Any]]:
             return releases
     return []
 
+def find_release_by_name(release_name: str) -> dict[str, Any] | None:
+    """Busca una release gestionada por la app en cualquier namespace."""
+    if not release_name:
+        return None
+
+    releases = _list_helm_releases(namespace=None)
+    for rel in releases:
+        if rel.get("name") != release_name:
+            continue
+
+        db_type = _resolve_db_type_from_chart(rel.get("chart", ""))
+        if db_type is None:
+            continue
+
+        rel_namespace = rel.get("namespace", "default")
+        return {
+            **rel,
+            "namespace": rel_namespace,
+            "db_type": db_type,
+        }
+
+    return None
+
 def _resolve_release(release_name: str, namespace: str) -> dict[str, Any]:
     """Resuelve y valida una release Helm gestionada por la aplicación."""
     releases = _list_helm_releases(namespace=namespace)

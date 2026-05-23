@@ -28,7 +28,7 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: shared-credentials
+                  name: shared-credentials-{{ $root.Release.Name }}
                   key: redis-password
           command:
             - /bin/sh
