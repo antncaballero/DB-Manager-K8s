@@ -11,6 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useReleaseStatefulsets } from "@/hooks/useReleaseStatefulsets";
+import { useWakeDatabase } from "@/hooks/useWakeDatabase";
 import { useWakeReleases } from "@/hooks/useWakeReleases";
 import { useWakeStatefulset } from "@/hooks/useWakeStatefulset";
 import type { StatefulSetWakeInfo } from "@/types";
@@ -62,14 +71,25 @@ export default function WakePage() {
     load: loadStatefulsets,
     clear: clearStatefulsets,
   } = useReleaseStatefulsets();
+  const {
+    wake: wakeRelease,
+    loading: wakeReleaseLoading,
+    error: wakeReleaseError,
+  } = useWakeDatabase();
   const { wake, loading: wakeLoading } = useWakeStatefulset();
 
   const [selectedReleaseKey, setSelectedReleaseKey] = useState("");
   const [wakingItemKey, setWakingItemKey] = useState<string | null>(null);
+  const [wakeAllOpen, setWakeAllOpen] = useState(false);
 
   const selectedRelease = useMemo(
     () => releases.find((r) => releaseKey(r.release_name, r.namespace) === selectedReleaseKey),
     [releases, selectedReleaseKey],
+  );
+
+  const hasWakeableStatefulsets = useMemo(
+    () => statefulsets.some((item) => item.can_wake),
+    [statefulsets],
   );
 
   useEffect(() => {
@@ -109,6 +129,23 @@ export default function WakePage() {
       toast.error(err instanceof Error ? err.message : "Error al despertar StatefulSet");
     } finally {
       setWakingItemKey(null);
+    }
+  }
+
+  async function handleWakeAll() {
+    if (!selectedRelease) return;
+
+    try {
+      const result = await wakeRelease(
+        selectedRelease.release_name,
+        selectedRelease.namespace,
+      );
+      toast.success(result.message);
+      setWakeAllOpen(false);
+      await loadStatefulsets(selectedRelease.release_name, selectedRelease.namespace);
+      await refreshReleases();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al despertar la release");
     }
   }
 
@@ -188,6 +225,52 @@ export default function WakePage() {
           </CardHeader>
 
           <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-sm text-muted-foreground">
+                Accion masiva: despierta todos los StatefulSets hibernados.
+              </div>
+              <Button
+                size="sm"
+                disabled={!hasWakeableStatefulsets || !selectedRelease || statefulsetsLoading || wakeReleaseLoading}
+                onClick={() => setWakeAllOpen(true)}
+              >
+                {wakeReleaseLoading ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Power className="mr-1.5 h-4 w-4" />
+                )}
+                {wakeReleaseLoading ? "Despertando…" : "Despertar release completa"}
+              </Button>
+            </div>
+
+            <Dialog open={wakeAllOpen} onOpenChange={setWakeAllOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Despertar release completa</DialogTitle>
+                  <DialogDescription>
+                    Se despertaran todos los StatefulSets hibernados de la release
+                    <span className="font-semibold"> {selectedRelease.release_name}</span> en el namespace
+                    <span className="font-semibold"> {selectedRelease.namespace}</span>.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {wakeReleaseError && (
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    {wakeReleaseError}
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => setWakeAllOpen(false)} disabled={wakeReleaseLoading}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={() => void handleWakeAll()} disabled={wakeReleaseLoading}>
+                    {wakeReleaseLoading ? "Despertando…" : "Confirmar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             {statefulsetsError && (
               <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
                 {statefulsetsError}
