@@ -16,6 +16,7 @@ services:
       - ../charts:/charts:ro
     environment:
       - KUBECONFIG=/root/.kube/config
+      - DB_MANAGER_STORAGE_CLASS=db-manager-default
     restart: unless-stopped
 
   # ── Frontend (React + Vite → Nginx) ────────────────────────────────────────

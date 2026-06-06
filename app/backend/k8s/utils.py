@@ -10,6 +10,8 @@ import yaml
 
 logger = logging.getLogger("k8s.utils")
 
+DEFAULT_STORAGE_CLASS_NAME = "db-manager-default"
+
 def generate_instance_names(class_name: str, num_students: int) -> list[str]:
     """Genera los nombres de instancia para cada alumno."""
     return [f"{class_name}-alumno{i}" for i in range(1, num_students + 1)]
@@ -17,7 +19,11 @@ def generate_instance_names(class_name: str, num_students: int) -> list[str]:
 def build_values_override(class_name: str, num_students: int) -> dict[str, Any]:
     """Construye el diccionario de values override para Helm."""
     names = generate_instance_names(class_name, num_students)
-    return {"instances": [{"name": n} for n in names]}
+    storage_class_name = os.getenv("DB_MANAGER_STORAGE_CLASS", DEFAULT_STORAGE_CLASS_NAME).strip()
+    values: dict[str, Any] = {"instances": [{"name": n} for n in names]}
+    if storage_class_name:
+        values["storage"] = {"className": storage_class_name}
+    return values
 
 def write_temp_values(values: dict[str, Any]) -> str:
     """Escribe el diccionario de values en un archivo temporal YAML."""

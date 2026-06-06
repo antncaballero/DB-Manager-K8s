@@ -29,8 +29,8 @@ output "vpc_id" {
 }
 
 output "storage_class" {
-  description = "Nombre del StorageClass para los PVC (gp3)."
-  value       = module.storage.storage_class_name
+  description = "Nombre lógico del StorageClass para los PVC."
+  value       = module.platform.storage_class_name
 }
 
 output "configure_kubectl" {
@@ -51,17 +51,17 @@ output "nlb_dns_note" {
 
 output "monitoring_namespace" {
   description = "Namespace donde está desplegado el stack de monitoring."
-  value       = module.monitoring.namespace
+  value       = module.platform.monitoring_namespace
 }
 
 output "monitoring_release_name" {
   description = "Nombre del release Helm de kube-prometheus-stack."
-  value       = module.monitoring.release_name
+  value       = module.platform.monitoring_release_name
 }
 
 output "monitoring_release_status" {
   description = "Estado del release Helm de monitoring."
-  value       = module.monitoring.release_status
+  value       = module.platform.monitoring_release_status
 }
 
 output "grafana_access" {
@@ -86,15 +86,15 @@ output "cluster_autoscaler_release_status" {
 
 output "keda_namespace" {
   description = "Namespace donde está desplegado KEDA."
-  value       = module.keda.namespace
+  value       = module.platform.keda_namespace
 }
 
 output "keda_release_name" {
   description = "Nombre del release Helm de KEDA."
-  value       = module.keda.release_name
+  value       = module.platform.keda_release_name
 }
 
 output "keda_release_status" {
   description = "Estado del release Helm de KEDA."
-  value       = module.keda.release_status
+  value       = module.platform.keda_release_status
 }

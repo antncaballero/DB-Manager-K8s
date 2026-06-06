@@ -1,93 +1,45 @@
-resource "kubernetes_namespace" "ingress_nginx" {
-  metadata {
-    name = "ingress-nginx"
-  }
-}
+module "platform" {
+  source = "../../modules/k8s-platform"
 
-resource "kubernetes_namespace" "monitoring" {
-  metadata {
-    name = "monitoring"
-  }
-}
+  storage_class_name                = var.storage_class_name
+  storage_provisioner               = var.storage_provisioner
+  storage_parameters                = var.storage_parameters
+  storage_reclaim_policy            = var.storage_reclaim_policy
+  storage_allow_volume_expansion    = var.storage_allow_volume_expansion
+  storage_volume_binding_mode       = var.storage_volume_binding_mode
+  storage_is_default_class          = var.storage_is_default_class
 
-resource "kubernetes_namespace" "keda" {
-  metadata {
-    name = "keda"
-  }
-}
+  ingress_namespace                 = var.ingress_namespace
+  ingress_release_name              = var.ingress_release_name
+  ingress_repository                = var.ingress_repository
+  ingress_chart                     = var.ingress_chart
+  ingress_chart_version             = var.ingress_chart_version
+  ingress_wait                      = var.ingress_wait
+  ingress_timeout                   = var.ingress_timeout
+  ingress_service_type              = var.ingress_service_type
+  ingress_service_annotations       = var.ingress_service_annotations
+  ingress_tcp_configmap_name        = var.ingress_tcp_configmap_name
+  ingress_admission_webhooks_enabled = var.ingress_admission_webhooks_enabled
 
-resource "kubernetes_config_map" "tcp_services" {
-  metadata {
-    name      = "tcp-services"
-    namespace = kubernetes_namespace.ingress_nginx.metadata[0].name
-  }
+  monitoring_namespace              = var.monitoring_namespace
+  monitoring_release_name           = var.monitoring_release_name
+  monitoring_repository             = var.monitoring_repository
+  monitoring_chart                  = var.monitoring_chart
+  monitoring_chart_version          = var.monitoring_chart_version
+  monitoring_wait                   = var.monitoring_wait
+  monitoring_timeout                = var.monitoring_timeout
+  monitoring_alertmanager_enabled   = var.monitoring_alertmanager_enabled
+  monitoring_prometheus_retention   = var.monitoring_prometheus_retention
+  monitoring_prometheus_storage_size = var.monitoring_prometheus_storage_size
+  monitoring_grafana_admin_password = var.monitoring_grafana_admin_password
+  monitoring_grafana_persistence_enabled = var.monitoring_grafana_persistence_enabled
+  monitoring_grafana_service_type   = var.monitoring_grafana_service_type
 
-  data = {}
-}
-
-resource "helm_release" "ingress_nginx" {
-  name             = "ingress-nginx"
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
-  namespace        = kubernetes_namespace.ingress_nginx.metadata[0].name
-  create_namespace = false
-  timeout = 900
-
-  set {
-    name  = "controller.service.type"
-    value = "LoadBalancer"
-  }
-
-  set {
-    name  = "controller.extraArgs.tcp-services-configmap"
-    value = "ingress-nginx/tcp-services"
-  }
-
-  depends_on = [kubernetes_config_map.tcp_services]
-}
-
-resource "helm_release" "kube_prometheus_stack" {
-  name             = "kube-prometheus-stack"
-  repository       = "https://prometheus-community.github.io/helm-charts"
-  chart            = "kube-prometheus-stack"
-  namespace        = kubernetes_namespace.monitoring.metadata[0].name
-  create_namespace = false
-  timeout = 900
-
-  set {
-    name  = "alertmanager.enabled"
-    value = "false"
-  }
-
-  set {
-    name  = "prometheus.prometheusSpec.retention"
-    value = "6h"
-  }
-
-  set {
-    name  = "grafana.adminPassword"
-    value = "admin"
-  }
-
-  set {
-    name  = "grafana.persistence.enabled"
-    value = "false"
-  }
-
-  set {
-    name  = "grafana.service.type"
-    value = "ClusterIP"
-  }
-
-  depends_on = [kubernetes_namespace.monitoring]
-}
-
-resource "helm_release" "keda" {
-  name             = "keda"
-  repository       = "https://kedacore.github.io/charts"
-  chart            = "keda"
-  namespace        = kubernetes_namespace.keda.metadata[0].name
-  create_namespace = false
-  timeout = 900
-  depends_on = [kubernetes_namespace.keda]
+  keda_namespace                    = var.keda_namespace
+  keda_release_name                 = var.keda_release_name
+  keda_repository                   = var.keda_repository
+  keda_chart                        = var.keda_chart
+  keda_chart_version                = var.keda_chart_version
+  keda_wait                         = var.keda_wait
+  keda_timeout                      = var.keda_timeout
 }

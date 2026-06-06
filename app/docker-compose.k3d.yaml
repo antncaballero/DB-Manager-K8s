@@ -14,6 +14,7 @@ services:
       - ../charts:/charts:ro
     environment:
       - KUBECONFIG=/root/.kube/config
+      - DB_MANAGER_STORAGE_CLASS=db-manager-default
     networks:
       - k3d-network
     restart: unless-stopped

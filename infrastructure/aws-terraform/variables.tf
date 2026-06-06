@@ -99,6 +99,125 @@ variable "eks_node_disk_size" {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PLATAFORMA KUBERNETES COMÚN
+# ─────────────────────────────────────────────────────────────────────────────
+
+variable "storage_class_name" {
+  description = "Nombre lógico de la StorageClass usada por la aplicación y monitoring."
+  type        = string
+  default     = "db-manager-default"
+}
+
+variable "storage_provisioner" {
+  description = "Provisioner real que implementa la StorageClass lógica en EKS."
+  type        = string
+  default     = "ebs.csi.aws.com"
+}
+
+variable "storage_parameters" {
+  description = "Parámetros específicos del provisioner EBS."
+  type        = map(string)
+  default = {
+    type      = "gp3"
+    fsType    = "ext4"
+    encrypted = "true"
+  }
+}
+
+variable "storage_reclaim_policy" {
+  description = "Política de borrado de volúmenes para la StorageClass lógica."
+  type        = string
+  default     = "Delete"
+}
+
+variable "storage_allow_volume_expansion" {
+  description = "Si la StorageClass lógica permite expandir volúmenes."
+  type        = bool
+  default     = true
+}
+
+variable "storage_volume_binding_mode" {
+  description = "Modo de binding de volúmenes para la StorageClass lógica."
+  type        = string
+  default     = "WaitForFirstConsumer"
+}
+
+variable "storage_is_default_class" {
+  description = "Si la StorageClass lógica debe marcarse como default."
+  type        = bool
+  default     = false
+}
+
+variable "ingress_namespace" {
+  description = "Namespace donde se instalará ingress-nginx."
+  type        = string
+  default     = "ingress-nginx"
+}
+
+variable "ingress_release_name" {
+  description = "Nombre del release Helm de ingress-nginx."
+  type        = string
+  default     = "ingress-nginx"
+}
+
+variable "ingress_repository" {
+  description = "Repositorio Helm del chart ingress-nginx."
+  type        = string
+  default     = "https://kubernetes.github.io/ingress-nginx"
+}
+
+variable "ingress_chart" {
+  description = "Nombre del chart ingress-nginx."
+  type        = string
+  default     = "ingress-nginx"
+}
+
+variable "ingress_chart_version" {
+  description = "Versión del chart ingress-nginx."
+  type        = string
+  default     = "4.12.0"
+}
+
+variable "ingress_wait" {
+  description = "Si Terraform debe esperar a que ingress-nginx esté listo."
+  type        = bool
+  default     = true
+}
+
+variable "ingress_timeout" {
+  description = "Timeout en segundos para instalar ingress-nginx."
+  type        = number
+  default     = 900
+}
+
+variable "ingress_service_type" {
+  description = "Tipo de Service del controller de ingress-nginx."
+  type        = string
+  default     = "LoadBalancer"
+}
+
+variable "ingress_service_annotations" {
+  description = "Anotaciones específicas de AWS para el Service de ingress-nginx."
+  type        = map(string)
+  default = {
+    "service.beta.kubernetes.io/aws-load-balancer-type"   = "nlb"
+    "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+  }
+}
+
+variable "ingress_tcp_configmap_name" {
+  description = "Nombre del ConfigMap tcp-services."
+  type        = string
+  default     = "tcp-services"
+}
+
+variable "ingress_admission_webhooks_enabled" {
+  description = "Si se habilitan los admission webhooks de ingress-nginx."
+  type        = bool
+  default     = false
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CLUSTER AUTOSCALER
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -252,12 +371,6 @@ variable "monitoring_prometheus_retention" {
   description = "Retención de Prometheus."
   type        = string
   default     = "7d"
-}
-
-variable "monitoring_prometheus_storage_class_name" {
-  description = "StorageClass para el volumen de Prometheus."
-  type        = string
-  default     = "gp3"
 }
 
 variable "monitoring_prometheus_storage_size" {

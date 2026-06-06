@@ -1,53 +1,45 @@
-variable "kubeconfig_path" {
-  description = "Path to kubeconfig file."
-  type        = string
-  default     = "~/.kube/config"
-}
-
-variable "kubeconfig_context" {
-  description = "Kubeconfig context to use."
-  type        = string
-  default     = "k3d-tfg-cluster"
+variable "create_storage_class" {
+  description = "Si se debe crear una StorageClass lógica para la plataforma."
+  type        = bool
+  default     = true
 }
 
 variable "storage_class_name" {
-  description = "Nombre lógico de la StorageClass usada por la aplicación."
+  description = "Nombre lógico de la StorageClass usada por la plataforma."
   type        = string
-  default     = "db-manager-default"
 }
 
 variable "storage_provisioner" {
-  description = "Provisioner real usado en local por la StorageClass lógica."
+  description = "Provisioner real de la StorageClass para el proveedor actual."
   type        = string
-  default     = "rancher.io/local-path"
 }
 
 variable "storage_parameters" {
-  description = "Parámetros del provisioner local."
+  description = "Parámetros específicos del provisioner de almacenamiento."
   type        = map(string)
   default     = {}
 }
 
 variable "storage_reclaim_policy" {
-  description = "Política de borrado de volúmenes en local."
+  description = "Política de borrado de los volúmenes al eliminar el PVC."
   type        = string
   default     = "Delete"
 }
 
 variable "storage_allow_volume_expansion" {
-  description = "Si la StorageClass local permite expandir volúmenes."
+  description = "Si la StorageClass permite expandir volúmenes."
   type        = bool
   default     = true
 }
 
 variable "storage_volume_binding_mode" {
-  description = "Modo de binding de la StorageClass local."
+  description = "Modo de binding de volúmenes para la StorageClass."
   type        = string
   default     = "WaitForFirstConsumer"
 }
 
 variable "storage_is_default_class" {
-  description = "Si la StorageClass lógica debe marcarse como default en local."
+  description = "Si la StorageClass lógica debe marcarse como default."
   type        = bool
   default     = false
 }
@@ -101,19 +93,19 @@ variable "ingress_service_type" {
 }
 
 variable "ingress_service_annotations" {
-  description = "Anotaciones específicas de local para el Service del controller."
+  description = "Anotaciones específicas del proveedor para el Service del controller."
   type        = map(string)
   default     = {}
 }
 
 variable "ingress_tcp_configmap_name" {
-  description = "Nombre del ConfigMap tcp-services."
+  description = "Nombre del ConfigMap que define el enrutado TCP de ingress-nginx."
   type        = string
   default     = "tcp-services"
 }
 
 variable "ingress_admission_webhooks_enabled" {
-  description = "Si se habilitan los admission webhooks en local."
+  description = "Si se habilitan los admission webhooks de ingress-nginx."
   type        = bool
   default     = true
 }
@@ -157,7 +149,7 @@ variable "monitoring_wait" {
 variable "monitoring_timeout" {
   description = "Timeout en segundos para instalar monitoring."
   type        = number
-  default     = 900
+  default     = 600
 }
 
 variable "monitoring_alertmanager_enabled" {
@@ -169,7 +161,7 @@ variable "monitoring_alertmanager_enabled" {
 variable "monitoring_prometheus_retention" {
   description = "Retención de Prometheus."
   type        = string
-  default     = "6h"
+  default     = "7d"
 }
 
 variable "monitoring_prometheus_storage_size" {
@@ -236,5 +228,5 @@ variable "keda_wait" {
 variable "keda_timeout" {
   description = "Timeout en segundos para instalar KEDA."
   type        = number
-  default     = 900
+  default     = 600
 }
