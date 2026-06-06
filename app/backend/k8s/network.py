@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import json
 import logging
-import tempfile
-from pathlib import Path
 from typing import Any
 
-import yaml
+from kubernetes import client
+from kubernetes.client.exceptions import ApiException
 
 from models import DB_CONFIG, DBType
-from .utils import _run, generate_instance_names
+from .client import core_v1_api
+from .utils import generate_instance_names
 
 logger = logging.getLogger("k8s.network")
 
@@ -18,41 +17,53 @@ TCP_CONFIGMAP_NAME = "tcp-services"
 
 def _get_tcp_configmap() -> dict[str, str]:
     """Lee el ConfigMap tcp-services y devuelve su campo `data` (dict)."""
-    cmd = [
-        "kubectl", "get", "configmap", TCP_CONFIGMAP_NAME,
-        "-n", INGRESS_NAMESPACE,
-        "-o", "json",
-    ]
-    result = _run(cmd, check=False)
+    api = core_v1_api()
+    try:
+        config_map = api.read_namespaced_config_map(
+            name=TCP_CONFIGMAP_NAME,
+            namespace=INGRESS_NAMESPACE,
+        )
+    except ApiException as exc:
+        if exc.status == 404:
+            logger.warning("ConfigMap %s no encontrado, se creará uno nuevo.", TCP_CONFIGMAP_NAME)
+            return {}
+        raise RuntimeError(
+            f"No se pudo leer el ConfigMap '{TCP_CONFIGMAP_NAME}' en namespace '{INGRESS_NAMESPACE}'."
+        ) from exc
 
-    if result.returncode != 0:
-        logger.warning("ConfigMap %s no encontrado, se creará uno nuevo.", TCP_CONFIGMAP_NAME)
-        return {}
-
-    cm = json.loads(result.stdout)
-    return cm.get("data", {}) or {}
+    return config_map.data or {}
 
 def _apply_tcp_configmap(data: dict[str, str]) -> None:
-    """Aplica (crea o actualiza) el ConfigMap tcp-services con kubectl apply."""
-    configmap = {
-        "apiVersion": "v1",
-        "kind": "ConfigMap",
-        "metadata": {
-            "name": TCP_CONFIGMAP_NAME,
-            "namespace": INGRESS_NAMESPACE,
-        },
-        "data": data,
-    }
+    """Crea o actualiza el ConfigMap tcp-services mediante la API de Kubernetes."""
+    api = core_v1_api()
+    body = client.V1ConfigMap(
+        metadata=client.V1ObjectMeta(
+            name=TCP_CONFIGMAP_NAME,
+            namespace=INGRESS_NAMESPACE,
+        ),
+        data=data,
+    )
 
-    fd, path = tempfile.mkstemp(suffix=".yaml", prefix="tcp-cm-")
     try:
-        with open(fd, "w") as f:
-            yaml.dump(configmap, f, default_flow_style=False)
-        logger.info("ConfigMap temporal escrito en %s", path)
-        _run(["kubectl", "apply", "-f", path])
-    finally:
-        Path(path).unlink(missing_ok=True)
-        logger.info("Archivo temporal %s eliminado.", path)
+        api.patch_namespaced_config_map(
+            name=TCP_CONFIGMAP_NAME,
+            namespace=INGRESS_NAMESPACE,
+            body=body,
+        )
+    except ApiException as exc:
+        if exc.status != 404:
+            raise RuntimeError(
+                f"No se pudo actualizar el ConfigMap '{TCP_CONFIGMAP_NAME}' en namespace '{INGRESS_NAMESPACE}'."
+            ) from exc
+        try:
+            api.create_namespaced_config_map(
+                namespace=INGRESS_NAMESPACE,
+                body=body,
+            )
+        except ApiException as create_exc:
+            raise RuntimeError(
+                f"No se pudo crear el ConfigMap '{TCP_CONFIGMAP_NAME}' en namespace '{INGRESS_NAMESPACE}'."
+            ) from create_exc
 
 def calculate_port_mappings(
     db_type: DBType,
@@ -128,72 +139,87 @@ def clean_tcp_configmap(
 def _sync_ingress_service_ports() -> None:
     """Sincroniza los puertos del Service ingress-nginx-controller con el ConfigMap."""
     tcp_data = _get_tcp_configmap()
+    api = core_v1_api()
+    try:
+        svc = api.read_namespaced_service(
+            name="ingress-nginx-controller",
+            namespace=INGRESS_NAMESPACE,
+        )
+    except ApiException as exc:
+        if exc.status == 404:
+            logger.warning("No se pudo obtener el Service ingress-nginx-controller para sincronizar puertos.")
+            return
+        raise RuntimeError(
+            "No se pudo obtener el Service ingress-nginx-controller para sincronizar puertos."
+        ) from exc
 
-    cmd = [
-        "kubectl", "get", "svc", "ingress-nginx-controller",
-        "-n", INGRESS_NAMESPACE,
-        "-o", "json",
-    ]
-    result = _run(cmd, check=False)
-    if result.returncode != 0:
-        logger.warning("No se pudo obtener el Service ingress-nginx-controller para sincronizar puertos.")
-        return
+    current_ports = svc.spec.ports or []
+    base_ports = [p for p in current_ports if not (p.name or "").endswith("-tcp")]
 
-    svc = json.loads(result.stdout)
-    current_ports: list[dict[str, Any]] = svc.get("spec", {}).get("ports", [])
-
-    base_ports = [p for p in current_ports if not p.get("name", "").endswith("-tcp")]
-
-    tcp_ports: list[dict[str, Any]] = []
+    tcp_ports: list[client.V1ServicePort] = []
     for ext_port_str in sorted(tcp_data.keys(), key=int):
         ext_port = int(ext_port_str)
-        tcp_ports.append({
-            "name": f"{ext_port}-tcp",
-            "port": ext_port,
-            "targetPort": ext_port,
-            "protocol": "TCP",
-        })
+        tcp_ports.append(
+            client.V1ServicePort(
+                name=f"{ext_port}-tcp",
+                port=ext_port,
+                target_port=ext_port,
+                protocol="TCP",
+            )
+        )
 
     all_ports = base_ports + tcp_ports
 
-    patch = json.dumps({"spec": {"ports": all_ports}})
-    patch_cmd = [
-        "kubectl", "patch", "svc", "ingress-nginx-controller",
-        "-n", INGRESS_NAMESPACE,
-        "--type=merge",
-        "-p", patch,
-    ]
-    _run(patch_cmd)
+    patch_body = {
+        "spec": {
+            "ports": [
+                api.api_client.sanitize_for_serialization(port)
+                for port in all_ports
+            ]
+        }
+    }
+    try:
+        api.patch_namespaced_service(
+            name="ingress-nginx-controller",
+            namespace=INGRESS_NAMESPACE,
+            body=patch_body,
+        )
+    except ApiException as exc:
+        raise RuntimeError(
+            "No se pudieron sincronizar los puertos del Service ingress-nginx-controller."
+        ) from exc
     logger.info("Service ingress-nginx-controller sincronizado: %d puertos base + %d puertos TCP.", len(base_ports), len(tcp_ports))
 
 def get_ingress_external_ip() -> str:
     """Obtiene la IP externa del servicio ingress-nginx-controller."""
-    cmd = [
-        "kubectl", "get", "svc", "ingress-nginx-controller",
-        "-n", INGRESS_NAMESPACE,
-        "-o", "json",
-    ]
-    result = _run(cmd, check=False)
-    if result.returncode != 0 or not result.stdout.strip():
-        logger.warning("No se pudo obtener el servicio ingress-nginx-controller.")
-        return ""
+    api = core_v1_api()
+    try:
+        svc = api.read_namespaced_service(
+            name="ingress-nginx-controller",
+            namespace=INGRESS_NAMESPACE,
+        )
+    except ApiException as exc:
+        if exc.status == 404:
+            logger.warning("No se pudo obtener el servicio ingress-nginx-controller.")
+            return ""
+        raise RuntimeError(
+            "No se pudo obtener el servicio ingress-nginx-controller."
+        ) from exc
 
-    svc = json.loads(result.stdout)
-
-    ingress_list = svc.get("status", {}).get("loadBalancer", {}).get("ingress", [])
+    ingress_list = (svc.status.load_balancer.ingress or []) if svc.status and svc.status.load_balancer else []
     for entry in ingress_list:
-        ip = entry.get("ip", "")
+        ip = entry.ip or ""
         if ip:
             return ip
-        hostname = entry.get("hostname", "")
+        hostname = entry.hostname or ""
         if hostname:
             return hostname
 
-    external_ips = svc.get("spec", {}).get("externalIPs", [])
+    external_ips = svc.spec.external_i_ps or [] if svc.spec else []
     if external_ips:
         return external_ips[0]
 
-    cluster_ip = svc.get("spec", {}).get("clusterIP", "")
+    cluster_ip = svc.spec.cluster_ip or "" if svc.spec else ""
     if cluster_ip:
         return cluster_ip
 

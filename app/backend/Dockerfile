@@ -12,12 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Instalar kubectl ────────────────────────────────────────────────────────
-ARG KUBECTL_VERSION=v1.35.0
-RUN curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-        -o /usr/local/bin/kubectl \
-    && chmod +x /usr/local/bin/kubectl
-
 # ── Instalar Helm v3 ────────────────────────────────────────────────────────
 ARG HELM_VERSION=v3.16.4
 RUN curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \

@@ -1,45 +1,47 @@
 from __future__ import annotations
 
-import json
 import logging
-import subprocess
+import time
 from typing import Any
 
-from .utils import _run
+from kubernetes.client.exceptions import ApiException
+
+from .client import apps_v1_api
 from .helm import _resolve_db_type_from_chart, _list_helm_releases, _resolve_release
 
 logger = logging.getLogger("k8s.workloads")
 
+
+def _serialize_resource(api: Any, resource: Any) -> dict[str, Any]:
+    """Convierte un modelo del cliente Kubernetes al formato JSON habitual de la API."""
+    return api.api_client.sanitize_for_serialization(resource)
+
 def _get_statefulsets_for_release(release_name: str, namespace: str) -> list[dict[str, Any]]:
     """Obtiene StatefulSets de una release."""
-    sts_cmd = [
-        "kubectl", "get", "statefulsets",
-        "-n", namespace,
-        "-l", f"app.kubernetes.io/instance={release_name}",
-        "-o", "json",
-    ]
-    sts_result = _run(sts_cmd, check=False)
-    items: list[dict[str, Any]] = []
-    if sts_result.returncode == 0 and sts_result.stdout.strip():
-        sts_data = json.loads(sts_result.stdout)
-        items = sts_data.get("items", [])
+    api = apps_v1_api()
+    try:
+        result = api.list_namespaced_stateful_set(
+            namespace=namespace,
+            label_selector=f"app.kubernetes.io/instance={release_name}",
+        )
+        items = [_serialize_resource(api, item) for item in result.items]
+    except ApiException as exc:
+        raise RuntimeError(
+            f"No se pudieron listar los StatefulSets de la release '{release_name}' en namespace '{namespace}'."
+        ) from exc
 
     if items:
         return items
 
-    sts_all_cmd = [
-        "kubectl", "get", "statefulsets",
-        "-n", namespace,
-        "-o", "json",
-    ]
-    sts_all_result = _run(sts_all_cmd, check=False)
-    if sts_all_result.returncode != 0 or not sts_all_result.stdout.strip():
-        return []
-
-    all_data = json.loads(sts_all_result.stdout)
+    try:
+        all_items = api.list_namespaced_stateful_set(namespace=namespace).items
+    except ApiException as exc:
+        raise RuntimeError(
+            f"No se pudieron listar los StatefulSets del namespace '{namespace}'."
+        ) from exc
     return [
-        item for item in all_data.get("items", [])
-        if item.get("metadata", {}).get("name", "").startswith(f"{release_name}-")
+        _serialize_resource(api, item) for item in all_items
+        if (item.metadata.name or "").startswith(f"{release_name}-")
     ]
 
 def list_active_statefulsets(namespace: str | None = None) -> list[dict[str, Any]]:
@@ -76,16 +78,57 @@ def list_active_statefulsets(namespace: str | None = None) -> list[dict[str, Any
 
 def scale_statefulset(statefulset_name: str, namespace: str, replicas: int) -> None:
     """Escala un StatefulSet al número de réplicas indicado."""
-    cmd = [
-        "kubectl",
-        "scale",
-        "statefulset",
-        statefulset_name,
-        f"--replicas={replicas}",
-        "-n",
-        namespace,
-    ]
-    _run(cmd)
+    api = apps_v1_api()
+    try:
+        api.patch_namespaced_stateful_set_scale(
+            name=statefulset_name,
+            namespace=namespace,
+            body={"spec": {"replicas": replicas}},
+        )
+    except ApiException as exc:
+        raise RuntimeError(
+            f"No se pudo escalar el StatefulSet '{statefulset_name}' en namespace '{namespace}'."
+        ) from exc
+
+
+def _wait_for_statefulset_ready(
+    statefulset_name: str,
+    namespace: str,
+    desired_replicas: int,
+    timeout_seconds: int,
+) -> None:
+    """Espera a que un StatefulSet alcance el número esperado de réplicas listas."""
+    api = apps_v1_api()
+    deadline = time.monotonic() + timeout_seconds
+
+    while time.monotonic() < deadline:
+        try:
+            statefulset = api.read_namespaced_stateful_set(
+                name=statefulset_name,
+                namespace=namespace,
+            )
+        except ApiException as exc:
+            raise RuntimeError(
+                f"No se pudo consultar el estado de '{statefulset_name}' en namespace '{namespace}'."
+            ) from exc
+
+        status = statefulset.status
+        ready_replicas = int((status.ready_replicas or 0) if status else 0)
+        current_replicas = int((status.replicas or 0) if status else 0)
+        updated_replicas = int((status.updated_replicas or 0) if status else 0)
+
+        if (
+            ready_replicas >= desired_replicas
+            and current_replicas >= desired_replicas
+            and updated_replicas >= desired_replicas
+        ):
+            return
+
+        time.sleep(2)
+
+    raise RuntimeError(
+        f"Timeout al esperar el arranque de {statefulset_name} en namespace {namespace}."
+    )
 
 def wake_release(release_name: str, namespace: str, timeout_seconds: int = 180) -> None:
     """Despierta una release escalando a 1 todos sus StatefulSets y esperando rollout."""
@@ -121,21 +164,12 @@ def wake_release(release_name: str, namespace: str, timeout_seconds: int = 180) 
         )
 
     for statefulset_name in statefulset_names:
-        rollout_cmd = [
-            "kubectl",
-            "rollout",
-            "status",
-            f"statefulset/{statefulset_name}",
-            "-n",
-            namespace,
-            f"--timeout={timeout_seconds}s",
-        ]
-        try:
-            _run(rollout_cmd, timeout=timeout_seconds + 20)
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(
-                f"Timeout al esperar el arranque de {statefulset_name} en namespace {namespace}."
-            ) from exc
+        _wait_for_statefulset_ready(
+            statefulset_name=statefulset_name,
+            namespace=namespace,
+            desired_replicas=1,
+            timeout_seconds=timeout_seconds,
+        )
 
 def _statefulset_status(desired_replicas: int, ready_replicas: int) -> str:
     if desired_replicas <= 0:
@@ -209,20 +243,11 @@ def wake_statefulset(
 
     scale_statefulset(statefulset_name, target_namespace, replicas=1)
 
-    rollout_cmd = [
-        "kubectl",
-        "rollout",
-        "status",
-        f"statefulset/{statefulset_name}",
-        "-n",
-        target_namespace,
-        f"--timeout={timeout_seconds}s",
-    ]
-    try:
-        _run(rollout_cmd, timeout=timeout_seconds + 20)
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(
-            f"Timeout al esperar el arranque de {statefulset_name} en namespace {target_namespace}."
-        ) from exc
+    _wait_for_statefulset_ready(
+        statefulset_name=statefulset_name,
+        namespace=target_namespace,
+        desired_replicas=1,
+        timeout_seconds=timeout_seconds,
+    )
 
     return True

@@ -10,7 +10,7 @@ services:
     volumes:
       # Kubeconfig: apunta a EKS después de ejecutar setup-eks.sh
       - ~/.kube/config:/root/.kube/config:ro
-      # Credenciales AWS: necesarias para que kubectl se autentique contra EKS
+      # Credenciales AWS: necesarias para que el cliente Kubernetes se autentique contra EKS
       - ~/.aws:/root/.aws:ro
       # Charts de Helm (misma ruta que espera k8s_manager.py)
       - ../charts:/charts:ro
