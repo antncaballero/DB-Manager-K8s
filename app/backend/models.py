@@ -1,5 +1,5 @@
 """
-models.py – Modelos Pydantic para la API del TFG DB Manager.
+models.py - Modelos Pydantic para la API del TFG DB Manager.
 """
 
 from enum import Enum

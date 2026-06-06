@@ -1,5 +1,5 @@
 """
-main.py – API REST del TFG DB Manager.
+main.py - API REST del TFG DB Manager.
 
 Endpoints:
   POST   /deploy   → Despliega un cluster de BBDDs para una clase.
@@ -10,8 +10,9 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
@@ -71,7 +72,7 @@ def health_check() -> dict[str, str]:
 @app.get("/deployments", response_model=ListDeploymentsResponse)
 def list_deployments(namespace: str | None = None) -> ListDeploymentsResponse:
     """Lista los despliegues activos de bases de datos gestionados por Helm."""
-    logger.info("GET /deployments – namespace=%s", namespace)
+    logger.info("GET /deployments - namespace=%s", namespace)
 
     try:
         raw = k8s_manager.list_deployments(namespace=namespace)
@@ -97,7 +98,7 @@ def deploy(req: DeployRequest) -> DeployResponse:
       4. Devuelve el mapeo de puertos al frontend.
     """
     logger.info(
-        "POST /deploy – db_type=%s, class_name=%s, num_students=%d, namespace=%s",
+        "POST /deploy - db_type=%s, class_name=%s, num_students=%d, namespace=%s",
         req.db_type.value, req.class_name, req.num_students, req.namespace,
     )
 
@@ -181,7 +182,7 @@ def wake_deployment(
     release_name: str,
 ) -> WakeDeploymentResponse:
     """Despierta un despliegue hibernado escalando a 1 todos sus StatefulSets."""
-    logger.info("POST /deployments/%s/wake – namespace=%s", release_name, namespace)
+    logger.info("POST /deployments/%s/wake - namespace=%s", release_name, namespace)
 
     try:
         k8s_manager.wake_release(
@@ -209,7 +210,7 @@ def wake_deployment(
 @app.get("/deployments/hibernated", response_model=ListWakeReleasesResponse)
 def list_wake_releases(namespace: str | None = None) -> ListWakeReleasesResponse:
     """Lista releases disponibles para wakeup granular."""
-    logger.info("GET /wake/releases – namespace=%s", namespace)
+    logger.info("GET /wake/releases - namespace=%s", namespace)
 
     try:
         raw = k8s_manager.list_wake_releases(namespace=namespace)
@@ -220,7 +221,7 @@ def list_wake_releases(namespace: str | None = None) -> ListWakeReleasesResponse
             detail=f"Error al listar releases para wakeup: {exc}",
         ) from exc
 
-    releases = [WakeReleaseOption(**release) for release in raw]
+    releases: list[WakeReleaseOption] = [WakeReleaseOption(**release) for release in raw]
     return ListWakeReleasesResponse(releases=releases)
 
 
@@ -234,13 +235,13 @@ def list_release_statefulsets(
 ) -> ListReleaseStatefulSetsResponse:
     """Lista StatefulSets de una release para wakeup individual."""
     logger.info(
-        "GET /wake/releases/%s/statefulsets – namespace=%s",
+        "GET /wake/releases/%s/statefulsets - namespace=%s",
         release_name,
         namespace,
     )
 
     try:
-        raw = k8s_manager.list_release_statefulsets(
+        raw: list[dict[str, Any]] = k8s_manager.list_release_statefulsets(
             release_name=release_name,
             namespace=namespace,
         )
@@ -263,7 +264,7 @@ def list_release_statefulsets(
             detail=f"Error inesperado al listar StatefulSets: {exc}",
         ) from exc
 
-    statefulsets = [StatefulSetWakeInfo(**item) for item in raw]
+    statefulsets: list[StatefulSetWakeInfo] = [StatefulSetWakeInfo(**item) for item in raw]
     return ListReleaseStatefulSetsResponse(
         release_name=release_name,
         namespace=namespace,
@@ -282,14 +283,14 @@ def wake_single_statefulset(
 ) -> WakeStatefulSetResponse:
     """Despierta un StatefulSet concreto de una release."""
     logger.info(
-        "POST /wake/releases/%s/statefulsets/%s – namespace=%s",
+        "POST /wake/releases/%s/statefulsets/%s - namespace=%s",
         release_name,
         statefulset_name,
         namespace,
     )
 
     try:
-        woke = k8s_manager.wake_statefulset(
+        woke: bool = k8s_manager.wake_statefulset(
             release_name=release_name,
             statefulset_name=statefulset_name,
             namespace=namespace,
@@ -317,7 +318,7 @@ def wake_single_statefulset(
         ) from exc
 
     if woke:
-        message = (
+        message: str = (
             f"StatefulSet '{statefulset_name}' despertado correctamente "
             f"en release '{release_name}'."
         )
