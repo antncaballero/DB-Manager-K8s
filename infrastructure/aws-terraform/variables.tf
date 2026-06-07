@@ -98,6 +98,30 @@ variable "eks_node_disk_size" {
   default     = 20
 }
 
+variable "aws_lab_mode" {
+  description = "Si es true, Terraform asume que está en AWS Academy/Labs y reutiliza roles IAM existentes. Si es false, crea los roles EKS necesarios para una cuenta AWS normal con permisos IAM."
+  type        = bool
+  default     = true
+}
+
+variable "eks_cluster_role_name" {
+  description = "Nombre del rol IAM ya existente que EKS usará para el control plane. En AWS Academy suele ser LabRole."
+  type        = string
+  default     = "LabRole"
+}
+
+variable "eks_node_role_name" {
+  description = "Nombre del rol IAM ya existente que usará el node group. En AWS Academy suele ser LabRole o un rol lab específico de nodos."
+  type        = string
+  default     = "LabRole"
+}
+
+variable "run_setup_eks_after_apply" {
+  description = "Si Terraform debe ejecutar setup-eks.sh automáticamente al final del apply para actualizar kubeconfig y validar el cluster localmente."
+  type        = bool
+  default     = false
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # PLATAFORMA KUBERNETES COMÚN
 # ─────────────────────────────────────────────────────────────────────────────

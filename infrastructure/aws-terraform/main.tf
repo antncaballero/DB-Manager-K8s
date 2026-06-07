@@ -31,6 +31,9 @@ module "eks" {
 
   project_name        = var.project_name
   cluster_version     = var.eks_cluster_version
+  lab_mode            = var.aws_lab_mode
+  cluster_role_name   = var.eks_cluster_role_name
+  node_role_name      = var.eks_node_role_name
   vpc_id              = module.vpc.vpc_id
   public_subnet_ids   = module.vpc.public_subnet_ids
   private_subnet_ids  = module.vpc.private_subnet_ids
@@ -40,12 +43,12 @@ module "eks" {
   node_max            = var.eks_node_max
   node_disk_size      = var.eks_node_disk_size
 
-  mysql_port_range_start = var.mysql_port_range_start
-  mysql_port_range_end   = var.mysql_port_range_end
-  mongo_port_range_start = var.mongo_port_range_start
-  mongo_port_range_end   = var.mongo_port_range_end
-  redis_port_range_start = var.redis_port_range_start
-  redis_port_range_end   = var.redis_port_range_end
+  mysql_port_range_start     = var.mysql_port_range_start
+  mysql_port_range_end       = var.mysql_port_range_end
+  mongo_port_range_start     = var.mongo_port_range_start
+  mongo_port_range_end       = var.mongo_port_range_end
+  redis_port_range_start     = var.redis_port_range_start
+  redis_port_range_end       = var.redis_port_range_end
   cassandra_port_range_start = var.cassandra_port_range_start
   cassandra_port_range_end   = var.cassandra_port_range_end
 }
@@ -75,75 +78,106 @@ module "cluster_autoscaler" {
 # ═══════════════════════════════════════════════════════════════════════════════
 #  4. PLATAFORMA KUBERNETES – Addons comunes del proyecto
 # ═══════════════════════════════════════════════════════════════════════════════
-module "platform" {
-  source = "../modules/k8s-platform"
+locals {
+  platform = {
+    storage = {
+      class_name             = var.storage_class_name
+      provisioner            = var.storage_provisioner
+      parameters             = var.storage_parameters
+      reclaim_policy         = var.storage_reclaim_policy
+      allow_volume_expansion = var.storage_allow_volume_expansion
+      volume_binding_mode    = var.storage_volume_binding_mode
+      is_default_class       = var.storage_is_default_class
+    }
+    ingress = {
+      namespace                  = var.ingress_namespace
+      release_name               = var.ingress_release_name
+      repository                 = var.ingress_repository
+      chart                      = var.ingress_chart
+      chart_version              = var.ingress_chart_version
+      wait                       = var.ingress_wait
+      timeout                    = var.ingress_timeout
+      service_type               = var.ingress_service_type
+      service_annotations        = var.ingress_service_annotations
+      tcp_configmap_name         = var.ingress_tcp_configmap_name
+      admission_webhooks_enabled = var.ingress_admission_webhooks_enabled
+    }
+    monitoring = {
+      namespace                   = var.monitoring_namespace
+      release_name                = var.monitoring_release_name
+      repository                  = var.monitoring_repository
+      chart                       = var.monitoring_chart
+      chart_version               = var.monitoring_chart_version
+      wait                        = var.monitoring_wait
+      timeout                     = var.monitoring_timeout
+      alertmanager_enabled        = var.monitoring_alertmanager_enabled
+      prometheus_retention        = var.monitoring_prometheus_retention
+      prometheus_storage_size     = var.monitoring_prometheus_storage_size
+      grafana_admin_password      = var.monitoring_grafana_admin_password
+      grafana_persistence_enabled = var.monitoring_grafana_persistence_enabled
+      grafana_service_type        = var.monitoring_grafana_service_type
+    }
+    keda = {
+      namespace     = var.keda_namespace
+      release_name  = var.keda_release_name
+      repository    = var.keda_repository
+      chart         = var.keda_chart
+      chart_version = var.keda_chart_version
+      wait          = var.keda_wait
+      timeout       = var.keda_timeout
+    }
+  }
 
-  storage_class_name             = var.storage_class_name
-  storage_provisioner            = var.storage_provisioner
-  storage_parameters             = var.storage_parameters
-  storage_reclaim_policy         = var.storage_reclaim_policy
-  storage_allow_volume_expansion = var.storage_allow_volume_expansion
-  storage_volume_binding_mode    = var.storage_volume_binding_mode
-  storage_is_default_class       = var.storage_is_default_class
+  db_manager_app = {
+    deploy       = var.deploy_db_manager_app
+    namespace    = var.db_manager_app_namespace
+    release_name = var.db_manager_app_release_name
+    backend = {
+      image_repository  = var.db_manager_backend_image_repository
+      image_tag         = var.db_manager_backend_image_tag
+      image_pull_policy = var.db_manager_backend_image_pull_policy
+    }
+    frontend = {
+      image_repository  = var.db_manager_frontend_image_repository
+      image_tag         = var.db_manager_frontend_image_tag
+      image_pull_policy = var.db_manager_frontend_image_pull_policy
+    }
+    ingress = {
+      enabled     = var.db_manager_app_ingress_enabled
+      class_name  = var.db_manager_app_ingress_class_name
+      annotations = var.db_manager_app_ingress_annotations
+      host        = var.db_manager_app_ingress_host
+      path        = var.db_manager_app_ingress_path
+    }
+    wait    = var.db_manager_app_wait
+    timeout = var.db_manager_app_timeout
+  }
+}
 
-  ingress_namespace                  = var.ingress_namespace
-  ingress_release_name               = var.ingress_release_name
-  ingress_repository                 = var.ingress_repository
-  ingress_chart                      = var.ingress_chart
-  ingress_chart_version              = var.ingress_chart_version
-  ingress_wait                       = var.ingress_wait
-  ingress_timeout                    = var.ingress_timeout
-  ingress_service_type               = var.ingress_service_type
-  ingress_service_annotations        = var.ingress_service_annotations
-  ingress_tcp_configmap_name         = var.ingress_tcp_configmap_name
-  ingress_admission_webhooks_enabled = var.ingress_admission_webhooks_enabled
+module "kubernetes_stack" {
+  source = "../kubernetes/terraform"
 
-  monitoring_namespace                   = var.monitoring_namespace
-  monitoring_release_name                = var.monitoring_release_name
-  monitoring_repository                  = var.monitoring_repository
-  monitoring_chart                       = var.monitoring_chart
-  monitoring_chart_version               = var.monitoring_chart_version
-  monitoring_wait                        = var.monitoring_wait
-  monitoring_timeout                     = var.monitoring_timeout
-  monitoring_alertmanager_enabled        = var.monitoring_alertmanager_enabled
-  monitoring_prometheus_retention        = var.monitoring_prometheus_retention
-  monitoring_prometheus_storage_size     = var.monitoring_prometheus_storage_size
-  monitoring_grafana_admin_password      = var.monitoring_grafana_admin_password
-  monitoring_grafana_persistence_enabled = var.monitoring_grafana_persistence_enabled
-  monitoring_grafana_service_type        = var.monitoring_grafana_service_type
-
-  keda_namespace     = var.keda_namespace
-  keda_release_name  = var.keda_release_name
-  keda_repository    = var.keda_repository
-  keda_chart         = var.keda_chart
-  keda_chart_version = var.keda_chart_version
-  keda_wait          = var.keda_wait
-  keda_timeout       = var.keda_timeout
+  platform       = local.platform
+  db_manager_app = local.db_manager_app
 
   depends_on = [module.eks, module.cluster_autoscaler]
 }
 
-module "db_manager_app" {
-  count = var.deploy_db_manager_app ? 1 : 0
+resource "terraform_data" "setup_eks" {
+  count = var.run_setup_eks_after_apply ? 1 : 0
 
-  source = "../modules/db-manager-app"
+  triggers_replace = [
+    module.eks.cluster_name,
+    var.aws_region,
+  ]
 
-  namespace                  = var.db_manager_app_namespace
-  release_name               = var.db_manager_app_release_name
-  backend_image_repository   = var.db_manager_backend_image_repository
-  backend_image_tag          = var.db_manager_backend_image_tag
-  backend_image_pull_policy  = var.db_manager_backend_image_pull_policy
-  frontend_image_repository  = var.db_manager_frontend_image_repository
-  frontend_image_tag         = var.db_manager_frontend_image_tag
-  frontend_image_pull_policy = var.db_manager_frontend_image_pull_policy
-  storage_class_name         = var.storage_class_name
-  ingress_enabled            = var.db_manager_app_ingress_enabled
-  ingress_class_name         = var.db_manager_app_ingress_class_name
-  ingress_annotations        = var.db_manager_app_ingress_annotations
-  ingress_host               = var.db_manager_app_ingress_host
-  ingress_path               = var.db_manager_app_ingress_path
-  wait                       = var.db_manager_app_wait
-  timeout                    = var.db_manager_app_timeout
+  provisioner "local-exec" {
+    command = "${path.module}/setup-eks.sh"
+    environment = {
+      CLUSTER_NAME = module.eks.cluster_name
+      AWS_REGION   = var.aws_region
+    }
+  }
 
-  depends_on = [module.platform]
+  depends_on = [module.kubernetes_stack]
 }

@@ -52,6 +52,24 @@ variable "node_disk_size" {
   type        = number
 }
 
+variable "lab_mode" {
+  description = "Si es true, reutiliza roles IAM existentes del laboratorio. Si es false, crea roles IAM estándar para EKS."
+  type        = bool
+  default     = true
+}
+
+variable "cluster_role_name" {
+  description = "Nombre del rol IAM existente para el control plane de EKS."
+  type        = string
+  default     = "LabRole"
+}
+
+variable "node_role_name" {
+  description = "Nombre del rol IAM existente para el node group de EKS."
+  type        = string
+  default     = "LabRole"
+}
+
 variable "mysql_port_range_start" {
   description = "Primer puerto del rango TCP para MySQL."
   type        = number

@@ -34,8 +34,9 @@ tfg-db-manager/
 │  ├─ redis-class/             # Chart Helm para despliegues de clase Redis
 │  └─ cassandra-class/         # Chart Helm para despliegues de clase Cassandra
 └─ infrastructure/
-   ├─ aws-terraform/           # IaC en AWS (VPC, EKS, ingress, storage, monitoring)
-   └─ local/setup-k3d.sh       # Preparación del entorno local con k3d
+   ├─ kubernetes/terraform/    # Capa común K8s por entidades lógicas (platform + app)
+   ├─ aws-terraform/           # Infra AWS + wrapper de la capa común de Kubernetes
+   └─ local/                   # bootstrap k3d + wrapper local de la capa común de Kubernetes
 ```
 
 ## Prerrequisitos
@@ -69,6 +70,22 @@ terraform plan
 terraform apply -auto-approve
 ```
 
+Por defecto el despliegue AWS asume `aws_lab_mode=true`, pensado para AWS Academy/Labs y reutilizando roles existentes como `LabRole`.
+
+Si estás fuera del lab y tu usuario puede crear roles IAM, puedes desactivar ese modo:
+
+```bash
+terraform apply -auto-approve -var='aws_lab_mode=false'
+```
+
+Si quieres que Terraform ejecute automáticamente la misma preparación local que hace `setup-eks.sh`, puedes activar:
+
+```bash
+terraform apply -auto-approve -var='run_setup_eks_after_apply=true'
+```
+
+Ese paso sigue siendo local a tu máquina: actualiza `~/.kube/config` y lanza comprobaciones con `aws`, `kubectl` y `helm`, así que se deja como opción y el script manual se mantiene.
+
 ### 2) Configurar `kubectl` y validar el cluster
 
 ```bash
@@ -76,6 +93,8 @@ terraform apply -auto-approve
 ```
 
 Este script configura el kubeconfig para EKS, valida nodos/ingress y deja el entorno listo para la aplicación.
+
+En AWS Academy no se crean roles IAM nuevos: con `aws_lab_mode=true`, Terraform usa roles existentes del laboratorio, con `LabRole` por defecto y la posibilidad de indicar roles EKS concretos mediante `eks_cluster_role_name` y `eks_node_role_name` si tu lab expone otros nombres.
 
 ### 3) Levantar frontend + backend
 
@@ -104,9 +123,11 @@ cd infrastructure/local
 ./setup-k3d.sh
 ```
 
-Este script crea el cluster `tfg-cluster`, aplica Terraform (ingress, monitoring, keda, configmap TCP) y genera `~/.kube/config-backend` para el contenedor backend.
+Este script primero aplica `infrastructure/local/bootstrap` para crear el cluster `tfg-cluster`, construir/importar imágenes y generar `~/.kube/config-backend`. Después aplica la capa Terraform común de Kubernetes (ingress, monitoring, keda, configmap TCP y app).
 
 También instala KEDA para habilitar la hibernación automática por inactividad.
+
+Si quieres comprobar directamente el frontend desplegado dentro del cluster, queda expuesto en `http://localhost:30080`.
 
 ### 2) Levantar frontend + backend
 

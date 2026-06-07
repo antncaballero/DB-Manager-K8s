@@ -30,7 +30,7 @@ output "vpc_id" {
 
 output "storage_class" {
   description = "Nombre lógico del StorageClass para los PVC."
-  value       = module.platform.storage_class_name
+  value       = module.kubernetes_stack.storage_class_name
 }
 
 output "configure_kubectl" {
@@ -51,17 +51,17 @@ output "nlb_dns_note" {
 
 output "monitoring_namespace" {
   description = "Namespace donde está desplegado el stack de monitoring."
-  value       = module.platform.monitoring_namespace
+  value       = module.kubernetes_stack.monitoring_namespace
 }
 
 output "monitoring_release_name" {
   description = "Nombre del release Helm de kube-prometheus-stack."
-  value       = module.platform.monitoring_release_name
+  value       = module.kubernetes_stack.monitoring_release_name
 }
 
 output "monitoring_release_status" {
   description = "Estado del release Helm de monitoring."
-  value       = module.platform.monitoring_release_status
+  value       = module.kubernetes_stack.monitoring_release_status
 }
 
 output "grafana_access" {
@@ -86,35 +86,35 @@ output "cluster_autoscaler_release_status" {
 
 output "keda_namespace" {
   description = "Namespace donde está desplegado KEDA."
-  value       = module.platform.keda_namespace
+  value       = module.kubernetes_stack.keda_namespace
 }
 
 output "keda_release_name" {
   description = "Nombre del release Helm de KEDA."
-  value       = module.platform.keda_release_name
+  value       = module.kubernetes_stack.keda_release_name
 }
 
 output "keda_release_status" {
   description = "Estado del release Helm de KEDA."
-  value       = module.platform.keda_release_status
+  value       = module.kubernetes_stack.keda_release_status
 }
 
 output "db_manager_app_namespace" {
   description = "Namespace donde está desplegada la app DB Manager."
-  value       = try(module.db_manager_app[0].namespace, "")
+  value       = module.kubernetes_stack.db_manager_app_namespace
 }
 
 output "db_manager_app_release_name" {
   description = "Nombre del release Helm de la app DB Manager."
-  value       = try(module.db_manager_app[0].release_name, "")
+  value       = module.kubernetes_stack.db_manager_app_release_name
 }
 
 output "db_manager_app_release_status" {
   description = "Estado del release Helm de la app DB Manager."
-  value       = try(module.db_manager_app[0].release_status, "")
+  value       = module.kubernetes_stack.db_manager_app_release_status
 }
 
 output "db_manager_app_access" {
   description = "Ruta de acceso esperada a la app DB Manager."
-  value       = var.deploy_db_manager_app ? "Accede usando el DNS/IP externo de ingress-nginx en path /" : "Despliegue in-cluster deshabilitado (deploy_db_manager_app=false)."
+  value       = module.kubernetes_stack.db_manager_app_enabled ? "Accede usando el DNS/IP externo de ingress-nginx en path /" : "Despliegue in-cluster deshabilitado (deploy_db_manager_app=false)."
 }

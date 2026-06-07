@@ -1,14 +1,10 @@
 # ╔═══════════════════════════════════════════════════════════════════════════════╗
 # ║  modules/eks/main.tf – Cluster EKS (Kubernetes gestionado por AWS)          ║
 # ║                                                                             ║
-# ║  ADAPTADO PARA AWS ACADEMY:                                                 ║
-# ║    - NO se crean roles IAM custom (prohibido en Academy)                    ║
-# ║    - Se usa el rol pre-creado "LabRole", que es el único rol genérico       ║
-# ║      disponible en el lab y tiene permisos suficientes para:                ║
-# ║        · Control plane del cluster EKS                                      ║
-# ║        · Nodos worker EC2 (Node Group)                                      ║
-# ║        · EBS CSI Driver (vía instance profile del nodo)                     ║
-# ║    - NO se crea OIDC Provider ni roles IRSA (prohibido en AWS Academy)      ║
+# ║  SOPORTA DOS MODOS:                                                         ║
+# ║    - AWS Academy/Labs: reutiliza roles IAM pre-creados                      ║
+# ║    - Cuenta AWS normal: crea los roles IAM estándar para EKS                ║
+# ║    - NO se crea OIDC Provider ni roles IRSA                                 ║
 # ║                                                                             ║
 # ║  Componentes:                                                               ║
 # ║    1. Data source: rol IAM pre-creado LabRole                               ║
@@ -22,26 +18,93 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  1. IAM ROL PRE-CREADO POR AWS ACADEMY
 # ═══════════════════════════════════════════════════════════════════════════════
-# En AWS Academy NO se pueden crear roles IAM personalizados.
-# El laboratorio pre-crea un rol genérico llamado "LabRole" que tiene
-# permisos amplios, incluyendo todas las políticas necesarias para EKS:
-#
-#   - AmazonEKSClusterPolicy (control plane)
-#   - AmazonEKSWorkerNodePolicy (nodos worker)
-#   - AmazonEKS_CNI_Policy (networking de pods)
-#   - AmazonEC2ContainerRegistryReadOnly (descargar imágenes)
-#   - AmazonEBSCSIDriverPolicy (gestionar volúmenes EBS)
-#   - Y muchas más (Lambda, S3, etc.)
-#
-# Su trust policy permite que tanto eks.amazonaws.com como ec2.amazonaws.com
-# lo asuman, por lo que sirve para el cluster Y para los nodos.
-#
-# NOTA: AWS Academy también crea roles específicos (LabEksClusterRole,
-# LabEksNodeRole) cuyos nombres incluyen prefijos/sufijos de sesión
-# aleatorios, pero LabRole es estable y engloba estos dos casos, así que lo usamos directamente.
+# En modo lab NO se crean roles IAM personalizados.
+# En modo normal sí se crean los roles estándar que EKS necesita.
 
-data "aws_iam_role" "lab_role" {
-  name = "LabRole"
+data "aws_iam_role" "cluster_role" {
+  count = var.lab_mode ? 1 : 0
+  name  = var.cluster_role_name
+}
+
+data "aws_iam_role" "node_role" {
+  count = var.lab_mode ? 1 : 0
+  name  = var.node_role_name
+}
+
+data "aws_iam_policy_document" "eks_cluster_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["eks.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "eks_node_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "cluster_role" {
+  count = var.lab_mode ? 0 : 1
+
+  name               = "${var.project_name}-eks-cluster-role"
+  assume_role_policy = data.aws_iam_policy_document.eks_cluster_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "cluster_role_policy" {
+  count = var.lab_mode ? 0 : 1
+
+  role       = aws_iam_role.cluster_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role" "node_role" {
+  count = var.lab_mode ? 0 : 1
+
+  name               = "${var.project_name}-eks-node-role"
+  assume_role_policy = data.aws_iam_policy_document.eks_node_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "node_worker_policy" {
+  count = var.lab_mode ? 0 : 1
+
+  role       = aws_iam_role.node_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "node_cni_policy" {
+  count = var.lab_mode ? 0 : 1
+
+  role       = aws_iam_role.node_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
+resource "aws_iam_role_policy_attachment" "node_ecr_readonly_policy" {
+  count = var.lab_mode ? 0 : 1
+
+  role       = aws_iam_role.node_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+resource "aws_iam_role_policy_attachment" "node_ebs_csi_policy" {
+  count = var.lab_mode ? 0 : 1
+
+  role       = aws_iam_role.node_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+locals {
+  cluster_role_arn = var.lab_mode ? data.aws_iam_role.cluster_role[0].arn : aws_iam_role.cluster_role[0].arn
+  node_role_arn    = var.lab_mode ? data.aws_iam_role.node_role[0].arn : aws_iam_role.node_role[0].arn
 }
 
 
@@ -128,7 +191,7 @@ resource "aws_security_group" "eks_nodes" {
 resource "aws_eks_cluster" "main" {
   name     = "${var.project_name}-eks"
   version  = var.cluster_version
-  role_arn = data.aws_iam_role.lab_role.arn
+  role_arn = local.cluster_role_arn
 
   # Configuración de red: en qué subnets vive el cluster
   vpc_config {
@@ -138,7 +201,7 @@ resource "aws_eks_cluster" "main" {
     subnet_ids = concat(var.public_subnet_ids, var.private_subnet_ids)
 
     # El endpoint del API server es público → se puede hacer kubectl desde el propio PC
-    endpoint_public_access  = true
+    endpoint_public_access = true
     # También accesible desde dentro de la VPC (los nodos hablan por red privada)
     endpoint_private_access = true
 
@@ -148,6 +211,8 @@ resource "aws_eks_cluster" "main" {
   tags = {
     Name = "${var.project_name}-eks"
   }
+
+  depends_on = [aws_iam_role_policy_attachment.cluster_role_policy]
 }
 
 
@@ -178,8 +243,8 @@ resource "aws_launch_template" "nodes" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"  # IMDSv2 (más seguro)
-    http_put_response_hop_limit = 2           # Permitir acceso desde pods
+    http_tokens                 = "required" # IMDSv2 (más seguro)
+    http_put_response_hop_limit = 2          # Permitir acceso desde pods
   }
 
   tag_specifications {
@@ -193,7 +258,7 @@ resource "aws_launch_template" "nodes" {
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.project_name}-nodes"
-  node_role_arn   = data.aws_iam_role.lab_role.arn
+  node_role_arn   = local.node_role_arn
 
   subnet_ids = var.private_subnet_ids
 
@@ -220,10 +285,17 @@ resource "aws_eks_node_group" "main" {
   }
 
   tags = {
-    Name = "${var.project_name}-nodes"
+    Name                                                     = "${var.project_name}-nodes"
     "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
-    "k8s.io/cluster-autoscaler/enabled"                     = "true"
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
   }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.node_worker_policy,
+    aws_iam_role_policy_attachment.node_cni_policy,
+    aws_iam_role_policy_attachment.node_ecr_readonly_policy,
+    aws_iam_role_policy_attachment.node_ebs_csi_policy,
+  ]
 }
 
 
