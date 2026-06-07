@@ -40,3 +40,8 @@ keda_chart        = "keda"
 keda_chart_version = "2.16.1"
 keda_wait         = true
 keda_timeout      = 600
+
+# ── App DB Manager dentro del cluster (requiere imágenes accesibles por EKS) ─
+deploy_db_manager_app = false
+# db_manager_backend_image_repository  = "<tu-registry>/db-manager-backend"
+# db_manager_frontend_image_repository = "<tu-registry>/db-manager-frontend"

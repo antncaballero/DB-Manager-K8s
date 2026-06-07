@@ -1,0 +1,42 @@
+{{- if .Values.frontend.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: {{ include "db-manager-app.namespace" . }}
+  labels:
+    {{- include "db-manager-app.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+  {{- with .Values.frontend.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.frontend.ingress.className }}
+  ingressClassName: {{ .Values.frontend.ingress.className }}
+  {{- end }}
+  {{- if .Values.frontend.ingress.host }}
+  rules:
+    - host: {{ .Values.frontend.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.frontend.ingress.path }}
+            pathType: {{ .Values.frontend.ingress.pathType }}
+            backend:
+              service:
+                name: {{ .Values.frontend.service.name }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+  {{- else }}
+  rules:
+    - http:
+        paths:
+          - path: {{ .Values.frontend.ingress.path }}
+            pathType: {{ .Values.frontend.ingress.pathType }}
+            backend:
+              service:
+                name: {{ .Values.frontend.service.name }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+  {{- end }}
+{{- end }}

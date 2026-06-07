@@ -443,3 +443,103 @@ variable "keda_timeout" {
   type        = number
   default     = 900
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# APP DB MANAGER DESPLEGADA EN KUBERNETES
+# ─────────────────────────────────────────────────────────────────────────────
+
+variable "deploy_db_manager_app" {
+  description = "Si se debe desplegar la app frontend/backend dentro del cluster."
+  type        = bool
+  default     = false
+}
+
+variable "db_manager_app_namespace" {
+  description = "Namespace donde se desplegará la aplicación."
+  type        = string
+  default     = "db-manager-system"
+}
+
+variable "db_manager_app_release_name" {
+  description = "Nombre del release Helm de la aplicación."
+  type        = string
+  default     = "db-manager-app"
+}
+
+variable "db_manager_backend_image_repository" {
+  description = "Repositorio de la imagen del backend para despliegue in-cluster."
+  type        = string
+  default     = "db-manager-backend"
+}
+
+variable "db_manager_backend_image_tag" {
+  description = "Tag de la imagen del backend."
+  type        = string
+  default     = "latest"
+}
+
+variable "db_manager_backend_image_pull_policy" {
+  description = "Image pull policy del backend."
+  type        = string
+  default     = "IfNotPresent"
+}
+
+variable "db_manager_frontend_image_repository" {
+  description = "Repositorio de la imagen del frontend para despliegue in-cluster."
+  type        = string
+  default     = "db-manager-frontend"
+}
+
+variable "db_manager_frontend_image_tag" {
+  description = "Tag de la imagen del frontend."
+  type        = string
+  default     = "latest"
+}
+
+variable "db_manager_frontend_image_pull_policy" {
+  description = "Image pull policy del frontend."
+  type        = string
+  default     = "IfNotPresent"
+}
+
+variable "db_manager_app_ingress_enabled" {
+  description = "Si la app debe exponerse por Ingress."
+  type        = bool
+  default     = true
+}
+
+variable "db_manager_app_ingress_class_name" {
+  description = "IngressClass usada por la app."
+  type        = string
+  default     = "nginx"
+}
+
+variable "db_manager_app_ingress_annotations" {
+  description = "Anotaciones del Ingress de la app."
+  type        = map(string)
+  default     = {}
+}
+
+variable "db_manager_app_ingress_host" {
+  description = "Host opcional del Ingress de la app. Vacío = sin host."
+  type        = string
+  default     = ""
+}
+
+variable "db_manager_app_ingress_path" {
+  description = "Path del Ingress de la app."
+  type        = string
+  default     = "/"
+}
+
+variable "db_manager_app_wait" {
+  description = "Si Terraform debe esperar a que la app esté lista."
+  type        = bool
+  default     = true
+}
+
+variable "db_manager_app_timeout" {
+  description = "Timeout en segundos para instalar la app."
+  type        = number
+  default     = 600
+}

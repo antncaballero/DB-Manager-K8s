@@ -122,3 +122,28 @@ module "platform" {
 
   depends_on = [module.eks, module.cluster_autoscaler]
 }
+
+module "db_manager_app" {
+  count = var.deploy_db_manager_app ? 1 : 0
+
+  source = "../modules/db-manager-app"
+
+  namespace                  = var.db_manager_app_namespace
+  release_name               = var.db_manager_app_release_name
+  backend_image_repository   = var.db_manager_backend_image_repository
+  backend_image_tag          = var.db_manager_backend_image_tag
+  backend_image_pull_policy  = var.db_manager_backend_image_pull_policy
+  frontend_image_repository  = var.db_manager_frontend_image_repository
+  frontend_image_tag         = var.db_manager_frontend_image_tag
+  frontend_image_pull_policy = var.db_manager_frontend_image_pull_policy
+  storage_class_name         = var.storage_class_name
+  ingress_enabled            = var.db_manager_app_ingress_enabled
+  ingress_class_name         = var.db_manager_app_ingress_class_name
+  ingress_annotations        = var.db_manager_app_ingress_annotations
+  ingress_host               = var.db_manager_app_ingress_host
+  ingress_path               = var.db_manager_app_ingress_path
+  wait                       = var.db_manager_app_wait
+  timeout                    = var.db_manager_app_timeout
+
+  depends_on = [module.platform]
+}

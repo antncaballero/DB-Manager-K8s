@@ -1,0 +1,38 @@
+namespaceOverride: ""
+
+labels:
+  appPartOf: db-manager
+
+backend:
+  image:
+    repository: db-manager-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    name: backend
+    port: 8000
+  storageClassName: db-manager-default
+  resources: {}
+
+frontend:
+  image:
+    repository: db-manager-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    name: frontend
+    port: 80
+  resources: {}
+  ingress:
+    enabled: true
+    className: nginx
+    annotations: {}
+    host: ""
+    path: /
+    pathType: Prefix
+
+rbac:
+  create: true
+  serviceAccountName: db-manager-backend

@@ -98,3 +98,23 @@ output "keda_release_status" {
   description = "Estado del release Helm de KEDA."
   value       = module.platform.keda_release_status
 }
+
+output "db_manager_app_namespace" {
+  description = "Namespace donde está desplegada la app DB Manager."
+  value       = try(module.db_manager_app[0].namespace, "")
+}
+
+output "db_manager_app_release_name" {
+  description = "Nombre del release Helm de la app DB Manager."
+  value       = try(module.db_manager_app[0].release_name, "")
+}
+
+output "db_manager_app_release_status" {
+  description = "Estado del release Helm de la app DB Manager."
+  value       = try(module.db_manager_app[0].release_status, "")
+}
+
+output "db_manager_app_access" {
+  description = "Ruta de acceso esperada a la app DB Manager."
+  value       = var.deploy_db_manager_app ? "Accede usando el DNS/IP externo de ingress-nginx en path /" : "Despliegue in-cluster deshabilitado (deploy_db_manager_app=false)."
+}

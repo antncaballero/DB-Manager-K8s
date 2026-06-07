@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ include "db-manager-app.namespace" . }}
+  labels:
+    {{- include "db-manager-app.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+      app.kubernetes.io/part-of: {{ .Values.labels.appPartOf }}
+  template:
+    metadata:
+      labels:
+        {{- include "db-manager-app.commonLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.frontend.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.frontend.service.name }}
+  namespace: {{ include "db-manager-app.namespace" . }}
+  labels:
+    {{- include "db-manager-app.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  selector:
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: {{ .Values.labels.appPartOf }}
+  ports:
+    - name: http
+      port: {{ .Values.frontend.service.port }}
+      targetPort: http

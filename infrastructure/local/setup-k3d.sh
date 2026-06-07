@@ -20,6 +20,10 @@ k3d cluster create tfg-cluster --k3s-arg "--disable=traefik@server:0" \
 echo "---- Inicializando Terraform..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TF_DIR="${SCRIPT_DIR}/terraform"
+APP_DIR="${SCRIPT_DIR}/../../app"
+
+echo "---- Construyendo e importando imágenes de la app en k3d..."
+"${APP_DIR}/build-k8s-images.sh"
 
 tf_cmd=(terraform -chdir="$TF_DIR")
 "${tf_cmd[@]}" init
@@ -41,5 +45,6 @@ sed -i "s/127.0.0.1:${CLUSTER_PORT}/k3d-tfg-cluster-server-0:6443/g" ~/.kube/con
 echo "---- Copia de seguridad del config lista para el Backend."
 
 echo "---- Entorno listo."
+echo "# Frontend DB Manager: http://localhost/"
 echo "# Para grafana ejecuta esto en una terminal: kubectl port-forward svc/kube-prometheus-stack-grafana -n monitoring 3300:80"
 echo "# Y abre http://localhost:3300 con user: admin y password: admin"
